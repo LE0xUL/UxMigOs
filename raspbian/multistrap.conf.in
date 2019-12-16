@@ -1,0 +1,51 @@
+[General]
+arch=armhf
+
+# these control package selection
+omitrequired=true
+addimportant=false
+allowrecommends=false
+
+# cleans up apt cache inside the image
+cleanup=true
+
+# extract all downloaded archives
+unpack=true
+
+# normally multistrap would run the pre/post scripts itself
+# if run on a native arch (eg if you build on an rpi.)
+# since we will run them manually, disable this behaviour.
+ignorenativearch=true
+
+# debootstrap determines which repository is used to
+# calculate the list of Priority: required packages
+debootstrap=Raspbian Foundation
+
+# aptsources is a list of sections to be listed
+# in the /etc/apt/sources.list.d/multistrap.sources.list
+# of the target.
+aptsources=Raspbian Foundation
+
+
+[Raspbian]
+source=http://mirrordirector.raspbian.org/raspbian
+suite=buster
+
+[Foundation]
+source=http://archive.raspberrypi.org/debian
+suite=buster
+
+
+# Required debs
+packages=base-files base-passwd bash coreutils dash debianutils diffutils dpkg
+packages=findutils grep gzip init libc-bin login mount sed tar util-linux cpio
+# packages=ncurses-base 
+
+# Optional base debs
+packages=systemd udev kmod gpgv procps
+packages=wget curl
+packages=apt rsync
+# packages=tzdata
+
+# Debs required by /opt packages
+@PACKAGES@

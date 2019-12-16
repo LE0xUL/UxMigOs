@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# load persistent configuration files from SD card before
+# launching systemd.
+
+# the settings will be exposed to all unit files.
+
+sleep 1 # wait for sd card to be detected
+
+MIGSSTATEDIR_ROOT='/root/migstate'
+MIGSSTATEDIR_BOOT='/boot/migstate'
+MIGSCRIPT_LOG="${MIGSSTATEDIR_ROOT}/init.log"
+MIG_RAMDISK='/mnt/migramdisk'
+
+mkdir -p ${MIGSSTATEDIR_ROOT}
+echo -e "[INI]\tINIT\n" > ${MIGSCRIPT_LOG}
+
+mkdir -p ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
+mount -t tmpfs -o size=400M tmpramdisk ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
+{ touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_OK; echo -e "[OK]\tRAMDISK\n" &>>${MIGSCRIPT_LOG}; } || \
+{ touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_FAIL; echo -e "[FAIL]\tRAMDISK\n" &>>${MIGSCRIPT_LOG}; }
+
+mknod /dev/mmcblk0p1 b 179 1 &>>${MIGSCRIPT_LOG} && \
+mount -o ro /dev/mmcblk0p1 /boot &>>${MIGSCRIPT_LOG} && \
+{ touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK; echo -e "[OK]\tMOUNT BOOT\n" &>>${MIGSCRIPT_LOG}; mkdir -p ${MIGSSTATEDIR_BOOT}; }  || \
+{ touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_FAIL; echo -e "[FAIL]\tMOUNT BOOT\n" &>>${MIGSCRIPT_LOG}; } 
+
+if [[ -f ${MIGSSTATEDIR_BOOT} ]]; then
+  cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>>${MIGSCRIPT_LOG} && \
+  echo -e "[OK]\tROOT -> BOOT\n" &>>${MIGSCRIPT_LOG} && \
+  cp -rv ${MIGSSTATEDIR_BOOT} ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+  echo -e "[OK]\tBOOT -> ROOT\n" &>>${MIGSCRIPT_LOG} && \
+  echo -e "[OK]\tMIGSTATE DIR UPDATED\n" &>>${MIGSCRIPT_LOG} && \
+  touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_OK
+
+  # TODO: SET HOSTNAME
+
+  if [[ -f ${MIGSSTATEDIR_ROOT}/wpa_supplicant.conf.bkp ]]; then
+    mkdir -p /etc/wpa_supplicant/ &>${MIGSCRIPT_LOG} && \
+    cp ${MIGSSTATEDIR_ROOT}/wpa_supplicant.conf.bkp /etc/wpa_supplicant/wpa_supplicant.conf &>>${MIGSCRIPT_LOG} && \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_OK; echo -e "[OK]\tWPA CONFIG\n" &>>${MIGSCRIPT_LOG}; } || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_FAIL; echo -e "[FAIL]\tWPA CONFIG\n" &>>${MIGSCRIPT_LOG}; }
+  else
+    touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_NOT_FOUND
+    echo -e "[--]\tWPA CONFIG NOT FOUND\n" &>>${MIGSCRIPT_LOG}
+  fi
+
+  if [[ -f ${MIGSSTATEDIR_ROOT}/en.network ]]; then
+    cp ${MIGSSTATEDIR_ROOT}/en.network /etc/systemd/network/en.network &>>${MIGSCRIPT_LOG} && \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_OK; echo -e "[OK]\tETH CONFIG\n" &>>${MIGSCRIPT_LOG}; } || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_FAIL; echo -e "[FAIL]\tETH CONFIG\n" &>>${MIGSCRIPT_LOG}; }
+  else
+    touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_NOT_FOUND
+    echo -e "[--]\tETH CONFIG NOT FOUND\n" &>>${MIGSCRIPT_LOG}
+  fi
+
+  if [[ -f ${MIGSSTATEDIR_ROOT}/wlan0.network ]]; then
+    cp ${MIGSSTATEDIR_ROOT}/wlan0.network /etc/systemd/network/wlan0.network &>>${MIGSCRIPT_LOG} && \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; echo -e "[OK]\tWLAN CONFIG\n" &>>${MIGSCRIPT_LOG}; } || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_FAIL; echo -e "[FAIL]\tWLAN CONFIG\n" &>>${MIGSCRIPT_LOG}; }
+  else
+    touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_NOT_FOUND
+    echo -e "[--]\tWLAN CONFIG NOT FOUND\n" &>>${MIGSCRIPT_LOG}
+  fi
+
+  cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>>${MIGSCRIPT_LOG} && \
+  echo -e "[OK]\tROOT -> BOOT\n" &>>${MIGSCRIPT_LOG} || \
+  echo -e "[FAIL]\tROOT -> BOOT\n" &>>${MIGSCRIPT_LOG}
+else
+  echo -e "[FAIL]\tMIGSTATE DIR\n" &>>${MIGSCRIPT_LOG}
+  touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_FAIL
+fi
+
+umount /boot &>>${MIGSCRIPT_LOG} && \
+rm /dev/mmcblk0p1 &>>${MIGSCRIPT_LOG} && \
+{ touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo -e "[OK]\tUMOUNT BOOT\n" &>>${MIGSCRIPT_LOG}; }  || \
+{ touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_FAIL; echo -e "[FAIL]\tUMOUNT BOOT\n" &>>${MIGSCRIPT_LOG}; } 
+
+exec /sbin/init

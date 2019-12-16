@@ -1,0 +1,19 @@
+[General]
+arch=armhf
+aptsources=
+bootstrap=Raspbian Foundation
+omitrequired=true
+addimportant=false
+allowrecommends=false
+
+[Raspbian]
+source=http://mirrordirector.raspbian.org/raspbian
+suite=buster
+
+[Foundation]
+source=http://archive.raspberrypi.org/debian
+suite=buster
+packages=build-essential
+
+# Debs required to build /opt packages
+@PACKAGES@

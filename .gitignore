@@ -1,0 +1,9 @@
+/_INITRD
+/migboot-migos-balena.tgz
+/boot
+/.pydo
+/dnsmasq.conf
+/.idea
+/.virtualenv
+/.venv
+__pycache__

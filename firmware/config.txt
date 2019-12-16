@@ -1,0 +1,23 @@
+dtoverlay=pi3-disable-bt
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+# RTC
+#dtoverlay=i2c-rtc,ds3231
+
+# Internal Audio
+#dtparam=audio=on
+
+# USB Device
+dtoverlay=dwc2
+
+gpu_mem=64
+
+gpio=5=ip,pu
+
+[gpio5=0]
+start_file=msd.elf
+
+[gpio5=1]
+start_x=1
+initramfs initrd
