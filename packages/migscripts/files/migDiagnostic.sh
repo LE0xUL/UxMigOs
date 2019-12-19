@@ -4,6 +4,8 @@
 # curl -s 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh' | bash
 
+## Device ID
+MIGDID="$(hostname)"
 MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
@@ -13,8 +15,6 @@ MIGSCRIPT_STAGE='STAGE'
 MIGSCRIPT_EVENT='EVENT'
 MIGSCRIPT_STATE='STATE'
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
-## Device ID
-MIGDID="$(hostname)"
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 

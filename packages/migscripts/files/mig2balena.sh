@@ -1,25 +1,26 @@
 #!/bin/bash
 
+# wget -O - 'http://10.0.0.211/balenaos/scripts/mig2balena.sh' | bash
+# wget http://10.0.0.211/balenaos/scripts/mig2balena.sh
+
 MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
-MIGSCRIPT_LOG="${MIGSSTATE_DIR}/mig2bal.log"
-MIGSCRIPT_STAGE='STAGE'
-MIGSCRIPT_EVENT='EVENT'
+MIGSCRIPT_LOG="${MIGSSTATE_DIR}/mig2balena.log"
 MIGSCRIPT_STATE='STATE'
-MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
+MIGCONFIG_FILE="mig.config"
 MIGMMC="/dev/mmcblk0"
-MIGBOOT_DEV='/dev/mmcblk0p1'
-MIGBOOT_BKP_FILE="migboot-backup-raspbian.tgz"
+MIGBOOT_MOUNTDIR='/boot'
+MIGBOOT_DEVICE='/dev/mmcblk0p1'
+MIGROOTFS_DEVICE='/dev/mmcblk0p2'
+MIGROOTFS_MOUNTDIR='/mnt/rootfs'
+MIGBKP_RASPBIANBOOT="migboot-backup-raspbian.tgz"
 MIG_RAMDISK='/mnt/migramdisk'
 
 MIGFSM_STATE=''
 
-
-# curl -s http://server/path/script.sh | bash -s arg1 arg2
-
-{MIGBUCKET_URL}='http://10.0.0.211/balenaos'
+MIGBUCKET_URL='http://10.0.0.211/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='testbucketconnection.file'
 MIGBUCKET_ATTEMPTNUM=0
@@ -34,64 +35,70 @@ MIG_FILE_RESIN_BOOT="p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz"
 MIG_FILE_RESIN_CONFIG_JSON='testMigration.config.json'
 
 function migExitError {
-    touch ${MIGSSTATE_DIR}/MIG_BALENA_FAIL
-
-    # cat ${MIGCOMMAND_LOG}
-	
+    touch ${MIGSSTATE_DIR}/MIG_BALENA_ERROR
+	# TODO: rm alive file
     echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
     echo -e "##################" | tee -a ${MIGSCRIPT_LOG}
     echo -e "# MIGRATION FAIL #" | tee -a ${MIGSCRIPT_LOG}
     echo -e "##################" | tee -a ${MIGSCRIPT_LOG}
     echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
     date | tee -a ${MIGSCRIPT_LOG}
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-    echo "${BASH_SOURCE[1]##*/}:${FUNCNAME[1]}[${BASH_LINENO[0]}]" | tee -a ${MIGSCRIPT_LOG}
+    echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
+    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | EXIT | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+    echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
     exit
 }
 
-function logCommand {
-    echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"CMDLOG"'", "msg":"['"${BASH_LINENO[0]}"'] ' | \
-    cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
-    echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG}
+# En caso de error, envia log del comando a la web
+function logCommand 
+{
+    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | INI | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
     if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]]; then
+        echo '{"device":"'"${MIGDID}"'", "script":"'"${BASH_SOURCE[1]##*/}"'", "function":"'"${FUNCNAME[1]}"'", "line":"'"${BASH_LINENO[0]}"'", "state":"'"CMDLOG"'", "msg":"' | \
+        cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
+        echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG}
+
         curl -X POST \
         -d "@${MIGCOMMAND_LOG}" \
-        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}"
+        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG}
+    else
+        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | FAIL | Can not send CMDLOG, No network" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
     fi
+
+    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | END | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
     return 0
 }
 
+# Guarda log de evento en el archivo de log, lo muestra por kmsg y lo envia a la web
 function logEvent {
-    echo -e "${MIGSCRIPT_STAGE}[${BASH_LINENO[0]}] : ${MIGSCRIPT_EVENT} | {$MIGSCRIPT_STATE} | $1" $> /dev/kmsg
-    
+    #TODO: touch Alive file for Watchdog
     if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]]; then
-        echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"${MIGSCRIPT_STATE}"'", "msg":"'"[${BASH_LINENO[0]}] $1"'"}' | \
-        tee -a ${MIGSCRIPT_LOG} /dev/tty | \
+        >${MIGCOMMAND_LOG}
+        echo '{"device":"'"${MIGDID}"'", "script":"'"${BASH_SOURCE[1]##*/}"'", "function":"'"${FUNCNAME[1]}"'", "line":"'"${BASH_LINENO[0]}"'", "state":"'"${MIGSCRIPT_STATE}"'", "msg":"'"$1"'"}' | \
+        tee -a ${MIGSCRIPT_LOG} /dev/kmsg /dev/tty | \
         curl -i -H "Accept: application/json" \
         -X POST \
         --data @- \
-        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || logCommand
+        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>>${MIGCOMMAND_LOG} || logCommand
     else
-        echo -e "${MIGSCRIPT_STAGE}[${BASH_LINENO[0]}] : ${MIGSCRIPT_EVENT} | {$MIGSCRIPT_STATE} | $1" &>>${MIGSCRIPT_LOG}
+        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | ${MIGSCRIPT_STATE} | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
     fi
 
     return 0
 }
 
 function updateBootMigState {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Update BootMigState"
     MIGSCRIPT_STATE="INI"
 
     logEvent
 
     MIGSCRIPT_STATE="OK"
 
-    umount ${MIGBOOT_DEV} &>/dev/null
+    umount ${MIGBOOT_DEVICE} &>/dev/null
 
-    mount ${MIGBOOT_DEV} /boot &>${MIGCOMMAND_LOG} && \
+    mount ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>${MIGCOMMAND_LOG} && \
     logEvent "BOOT mounted"  || \
     {
         MIGSCRIPT_STATE="FAIL";
@@ -101,11 +108,11 @@ function updateBootMigState {
     }
 
     if [[ -d  ${MIGSSTATEDIR_BOOT} ]]; then
-        cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} && \
+        rsync -av ${MIGSSTATEDIR_ROOT} ${MIGBOOT_MOUNTDIR} &>${MIGCOMMAND_LOG} && \
         logEvent "MIGSTATE_ROOT DIR UPDATED" && \
-        umount ${MIGBOOT_DEV} &>>${MIGCOMMAND_LOG} && \
+        umount ${MIGBOOT_DEVICE} &>>${MIGCOMMAND_LOG} && \
         logEvent "BOOT unmounted"  && \
-        touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_OK || \
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIGSTATE_OK || \
         {
             MIGSCRIPT_STATE="FAIL";
             logEvent;
@@ -124,8 +131,6 @@ function updateBootMigState {
 }
 
 function migRestoreNetworkConfig {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Network Config"
     MIGSCRIPT_STATE="INI"
 
     logEvent
@@ -136,17 +141,17 @@ function migRestoreNetworkConfig {
         cp ${MIGSSTATE_DIR}/en.network /etc/systemd/network/en.network &>>${MIGSCRIPT_LOG} && \
         { 
             MIGSCRIPT_STATE="OK";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_OK;
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_OK;
             logEvent "ETH CONFIG" &>>${MIGSCRIPT_LOG};
         } || \
         { 
             MIGSCRIPT_STATE="ERROR";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_FAIL;
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_FAIL;
             logEvent "ETH CONFIG" &>>${MIGSCRIPT_LOG};
         }
     else
         MIGSCRIPT_STATE="FAIL";
-        touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_NOT_FOUND
+        # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_NOT_FOUND
         logEvent "ETH CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
     fi
 
@@ -154,17 +159,17 @@ function migRestoreNetworkConfig {
         cp ${MIGSSTATE_DIR}/wlan0.network /etc/systemd/network/wlan0.network &>>${MIGSCRIPT_LOG} && \
         { 
             MIGSCRIPT_STATE="OK";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; 
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; 
             logEvent "WLAN CONFIG" &>>${MIGSCRIPT_LOG}; 
         } || \
         { 
             MIGSCRIPT_STATE="ERROR";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_FAIL; 
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_FAIL; 
             logEvent "WLAN CONFIG" &>>${MIGSCRIPT_LOG}; 
         }
     else
         MIGSCRIPT_STATE="FAIL";
-        touch ${MIGSSTATE_DIR}/MIG_INIT_WLAN_CONFIG_NOT_FOUND
+        # touch ${MIGSSTATE_DIR}/MIG_INIT_WLAN_CONFIG_NOT_FOUND
         logEvent "WLAN CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
     fi
 
@@ -173,18 +178,18 @@ function migRestoreNetworkConfig {
         cp ${MIGSSTATE_DIR}/wpa_supplicant.conf.bkp /etc/wpa_supplicant/wpa_supplicant.conf &>>${MIGSCRIPT_LOG} && \
         { 
             MIGSCRIPT_STATE="OK";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_OK; 
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_OK; 
             logEvent "WPA CONFIG" &>>${MIGSCRIPT_LOG};
             /sbin/wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -Dnl80211,wext -iwlan0 &>>${MIGSCRIPT_LOG};
         } || \
         { 
             MIGSCRIPT_STATE="ERROR";
-            touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_FAIL; 
+            # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_FAIL; 
             logEvent "WPA CONFIG" &>>${MIGSCRIPT_LOG};
         }
     else
         MIGSCRIPT_STATE="FAIL";
-        touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_NOT_FOUND
+        # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_NOT_FOUND
         logEvent "WPA CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
     fi
 
@@ -193,39 +198,101 @@ function migRestoreNetworkConfig {
     return 0
 }
 
-# try to restore migstate
 function migStateInit {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="migState"
     MIGSCRIPT_STATE="INI"
-
     logEvent
 
-    MIGSCRIPT_STATE="OK"
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_BOOT_OK ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_BOOT_OK &>>${MIGSCRIPT_LOG}
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_BOOT_ERROR ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_BOOT_ERROR &>>${MIGSCRIPT_LOG}
 
-    umount ${MIGBOOT_DEV} &>/dev/null
+    umount -v ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG}
 
-    mount ${MIGBOOT_DEV} /boot &>${MIGCOMMAND_LOG} && \
-    logEvent "BOOT mounted"  && \
-    cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>>${MIGCOMMAND_LOG} && \
-    logEvent "ROOT -> BOOT" && \
-    cp -rv ${MIGSSTATEDIR_BOOT} ${MIGSSTATEDIR_ROOT} &>>${MIGCOMMAND_LOG} && \
-    logEvent "BOOT -> ROOT" && \
-    logEvent "MIGSTATE_ROOT DIR UPDATED" && \
-    migRestoreNetworkConfig && \
-    MIGSCRIPT_EVENT="migState" && \
-    MIGSCRIPT_STATE="OK" && \
-    cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>>${MIGSCRIPT_LOG} && \
-    logEvent "MIGSTATE_BOOT DIR UPDATED" && \
-    umount ${MIGBOOT_DEV} &>>${MIGCOMMAND_LOG} && \
-    logEvent "BOOT unmounted"  && \
-    touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_OK || \
+    >${MIGCOMMAND_LOG}
+    mount -vo ro ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
     {
-        MIGSCRIPT_STATE="FAIL";
-        logEvent;
-        logCommand;
-        migExitError;
+        MIGSCRIPT_STATE="OK"
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MOUNT_BOOT_OK
+        logEvent "BOOT mounted"
+    } || \
+    { 
+        MIGSCRIPT_STATE="ERROR"
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MOUNT_BOOT_ERROR
+        logCommand
+        logEvent "Can not mount BOOT"
     }
+
+    ls -alh 
+
+    if [[ -d ${MIGSSTATEDIR_BOOT} ]]; then
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIGSTATE_BOOT_FOUND
+
+        if [[ -f ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ]]; then
+            >${MIGCOMMAND_LOG}
+            cp -v ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+            {
+                MIGSCRIPT_STATE="OK"
+                touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIG_CONFIG_OK
+                logEvent "copyed ${MIGCONFIG_FILE}"
+            } || \
+            {
+                MIGSCRIPT_STATE="ERROR"
+                touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIG_CONFIG_ERROR
+                logCommand
+                logEvent "Can not copy ${MIGCONFIG_FILE}"
+            }
+        else
+            MIGSCRIPT_STATE="FAIL"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIG_CONFIG_NOT_FOUND
+            logEvent "${MIGCONFIG_FILE} NOT FOUND"
+        fi
+
+        migRestoreNetworkConfig
+    else
+        MIGSCRIPT_STATE="FAIL"
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIGSTATE_BOOT_NOT_FOUND_ERROR
+        logEvent "${MIGSSTATEDIR_BOOT} NOT FOUND"
+        ls -alh ${MIGBOOT_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG}
+        echo "=============" |& tee -a ${MIGSCRIPT_LOG}
+        ls -alh ${MIGSSTATEDIR_BOOT} |& tee -a ${MIGSCRIPT_LOG}
+    fi
+
+    if [[ -f ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MOUNT_BOOT_OK ]]; then
+        >${MIGCOMMAND_LOG}
+        umount -v ${MIGBOOT_DEVICE} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+        { 
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_UMOUNT_BOOT_OK
+            logEvent "UMOUNT BOOT"
+        } || \
+        { 
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_UMOUNT_BOOT_ERROR
+            logCommand
+            logEvent "UMOUNT BOOT"
+        }
+    else
+        MIGSCRIPT_STATE="FAIL";
+        logEvent "MIG_BALENA_MOUNT_BOOT_OK NOT FOUND"
+    fi
+
+    # rsync -av ${MIGSSTATEDIR_ROOT} ${MIGBOOT_MOUNTDIR} |& tee -a ${MIGCOMMAND_LOG} ${MIGSCRIPT_LOG} && \
+    # logEvent "ROOT -> BOOT" && \
+    # rsync -av ${MIGSSTATEDIR_BOOT} /root |& tee -a ${MIGCOMMAND_LOG} ${MIGSCRIPT_LOG} && \
+    # logEvent "BOOT -> ROOT" && \
+    # logEvent "MIGSTATE_ROOT DIR UPDATED" && \
+    # migRestoreNetworkConfig && \
+    # MIGSCRIPT_STATE="OK" && \
+    # rsync -av ${MIGSSTATEDIR_ROOT} ${MIGBOOT_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG} ${MIGSCRIPT_LOG} && \
+    # logEvent "MIGSTATE_BOOT DIR UPDATED" && \
+    # umount ${MIGBOOT_DEVICE} &>>${MIGCOMMAND_LOG} && \
+    # logEvent "BOOT unmounted"  && \
+    # touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIGSTATE_OK || \
+    # {
+    #     MIGSCRIPT_STATE="FAIL";
+    #     logEvent;
+    #     logCommand;
+    #     migExitError;
+    # }
 
     MIGSCRIPT_STATE="END"
     logEvent
@@ -233,8 +300,6 @@ function migStateInit {
 }
 
 function migCreateRamdisk {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Create Ramdisk"
     MIGSCRIPT_STATE="INI"
     
     logEvent
@@ -245,12 +310,12 @@ function migCreateRamdisk {
     rm -rf ${MIG_RAMDISK}/* &>>${MIGSCRIPT_LOG} && \
     mount -t tmpfs -o size=400M tmpramdisk ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
     {
-        touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_OK ;
+        # touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_OK ;
         MIGSCRIPT_STATE="OK";
         logEvent "RAMDISK" &>>${MIGSCRIPT_LOG};
     } || \
     { 
-        touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_FAIL;
+        # touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_FAIL;
         MIGSCRIPT_STATE="ERROR";
         logEvent;
         logCommand;
@@ -263,28 +328,67 @@ function migCreateRamdisk {
 }
 
 function backupRaspbianBoot {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Backup Raspbian BOOT"
     MIGSCRIPT_STATE="INI"
-    
-    umount /dev/mmcblk0p2 &>/dev/null
+    logEvent
 
-    mkdir -p /mnt/rootfs &> ${MIGCOMMAND_LOG} && \
-    mount /dev/mmcblk0p2 /mnt/rootfs &>>${MIGCOMMAND_LOG} && \
-    logEvent "ROOTFS mounted" && \
-    [[ -f /mnt/rootfs/${MIGBOOT_BKP_FILE} ]] && \
-    cp /mnt/rootfs/${MIGBOOT_BKP_FILE} /root &>>${MIGCOMMAND_LOG} && \
-    logEvent "Copyed ${MIGBOOT_BKP_FILE}" && \
-    umount /dev/mmcblk0p2 &>>${MIGCOMMAND_LOG} && \
-    logEvent "ROOTFS unmounted"  && \
-    touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_BACKUP_RASPBIAN_BOOT_OK || \
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_OK ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_OK &>>${MIGSCRIPT_LOG}
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_ERROR ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_ERROR &>>${MIGSCRIPT_LOG}
+    
+    umount -v ${MIGROOTFS_DEVICE} &>>${MIGSCRIPT_LOG}
+
+    >${MIGCOMMAND_LOG}
+    mkdir -vp ${MIGROOTFS_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+    mount -vo ro ${MIGROOTFS_DEVICE} ${MIGROOTFS_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
     {
-        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_BACKUP_RASPBIAN_BOOT_ERROR;
-        MIGSCRIPT_STATE="ERROR";
-        logEvent;
-        logCommand;
-        migExitError;
+        MIGSCRIPT_STATE="OK"
+        logEvent "ROOTFS mounted"
+        touch ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_OK
+    } || \
+    {
+        MIGSCRIPT_STATE="ERROR"
+        touch ${MIGSSTATE_DIR}/MIG_BALENA_MOUNT_ROOTFS_ERROR
+        logCommand
+        logEvent "Can not mount ROOTFS"
     }
+
+    if [[ -f ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} ]]; then
+        >${MIGCOMMAND_LOG}
+        cp -v ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} /root |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+        { 
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_CP_BKP_RASPBIAN_BOOT_OK
+            logEvent "Copyed ${MIGBKP_RASPBIANBOOT}" 
+        } || \
+        { 
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_CP_BKP_RASPBIAN_BOOT_ERROR
+            logCommand
+            logEvent "Can not Copy ${MIGBKP_RASPBIANBOOT}"
+        }
+    else
+        MIGSCRIPT_STATE="FAIL";
+        touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_BKP_RASPBIAN_BOOT_NOT_FOUND_FAIL
+        logEvent "${MIGBKP_RASPBIANBOOT} NOT FOUND"
+    fi
+
+    if [[ -f ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MOUNT_ROOTFS_OK ]]; then
+        >${MIGCOMMAND_LOG}
+        umount -v ${MIGROOTFS_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+        { 
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_UMOUNT_ROOTFS_OK
+            logEvent "UMOUNT ROOTFS"
+        } || \
+        { 
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_UMOUNT_ROOTFS_ERROR
+            logCommand
+            logEvent "UMOUNT ROOTFS"
+        }
+    else
+        MIGSCRIPT_STATE="FAIL";
+        logEvent "MIG_BALENA_MOUNT_ROOTFS_OK NOT FOUND"
+    fi
 
     MIGSCRIPT_STATE="END"
     logEvent
@@ -292,14 +396,12 @@ function backupRaspbianBoot {
 }
 
 function testBucketConnection {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Test Network"
     MIGSCRIPT_STATE="INI"
 
     [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR
     [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK
 
-	until $(wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${MIGBUCKET_FILETEST}"); do
+	until $(wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${MIGBUCKET_FILETEST} &>>${MIGSCRIPT_LOG}"); do
 		if [ ${MIGBUCKET_ATTEMPTNUM} -eq ${MIGBUCKET_ATTEMPTMAX} ];then
             MIGSCRIPT_STATE="ERROR"
 			logEvent "No Network Connection"
@@ -321,8 +423,6 @@ function testBucketConnection {
 }
 
 function updateStateFSM {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Update FSM"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -358,8 +458,6 @@ function updateStateFSM {
 }
 
 function migrationFSM {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Migration FSM"
     MIGSCRIPT_STATE="INI"
     logEvent
     
@@ -425,7 +523,7 @@ function migrationFSM {
             logEvent "BOOT - wget"
             wget "${MIGBUCKET_URL}/${MIG_FILE_RESIN_BOOT}" &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "BOOT - gunzip | dd"
-            gunzip -c ${MIG_FILE_RESIN_BOOT} | dd of=${MIGMMC}p1 bs=4M &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
+            gunzip -c ${MIG_FILE_RESIN_BOOT} | dd of=${MIGBOOT_DEVICE} bs=4M &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "BOOT - rm"
             rm ${MIG_FILE_RESIN_BOOT} &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             touch ${MIGSSTATE_DIR}/MIG_FSM_BOOT_OK 
@@ -434,11 +532,11 @@ function migrationFSM {
             
         'CONFIG')
             logEvent "CONFIG - Mount Boot"
-            mkdir -p /mnt/boot && mount ${MIGMMC}p1 /mnt/boot/ &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
+            mkdir -p ${MIGBOOT_MOUNTDIR} && mount ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "CONFIG - wget json"
             wget "${MIGBUCKET_URL}/$file_config_json" &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "CONFIG - cp json"
-            cp $file_config_json /mnt/boot/config.json &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
+            cp $file_config_json ${MIGBOOT_MOUNTDIR}/config.json &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "CONFIG - cp json"
             wget "${MIGBUCKET_URL}/${MIG_FILE_RESIN_CONFIG}" &>${MIGCOMMAND_LOG} || { logCommand; migExitError; }
             logEvent "CONFIG - gunzip | dd"
@@ -467,44 +565,47 @@ function migrationFSM {
 }
 
 function mig2Balena {
-	MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="mig2Balena.sh"
+    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
+    echo -e "###############################################" | tee -a ${MIGSCRIPT_LOG}
+    date | tee -a ${MIGSCRIPT_LOG}
+    echo -e "" | tee -a ${MIGSCRIPT_LOG}
+    
     MIGSCRIPT_STATE="INI"
 
 	[[ ! -d ${MIGSSTATE_DIR} ]] && mkdir -p ${MIGSSTATE_DIR} && \
     logEvent "Missing ${MIGSSTATE_DIR} ... Created." || \
     logEvent
     
-    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_FAIL ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_FAIL
-    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_SUCCESS ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_SUCCESS
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_ERROR ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_ERROR &>>${MIGSCRIPT_LOG}
+    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_SUCCESS ]] && rm -v ${MIGSSTATE_DIR}/MIG_BALENA_SUCCESS &>>${MIGSCRIPT_LOG}
 
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "*****************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "* MIGRATION INI *" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "*****************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
-    date | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
-
-    # try to restore migstate and network config
-    [[ ! -f ${MIGSSTATE_DIR}/MIG_INIT_MIGSTATE_OK ]] && migStateInit || \
+    # try to restore migstate config and network config
+    [[ ! -f ${MIGSSTATE_DIR}/MIG_INIT_MIGSTATE_BOOT_FOUND ]] && migStateInit || \
     {
         MIGSCRIPT_STATE="OK";
-        logEvent "/init was successfully completed"
+        logEvent "/init was successfully completed";
     }
-	
-    testBucketConnection
 
-    if [[ ! -f ${MIGCONFIG_FILE} ]]; then
+    # try to copy backup raspbian boot
+    [[ ! -f /root/${MIGBKP_RASPBIANBOOT} ]] && backupRaspbianBoot || \
+    {
+        MIGSCRIPT_STATE="OK";
+        logEvent "${MIGBKP_RASPBIANBOOT} found in /root";
+    }
+
+    if [[ ! -f ${MIGSSTATE_DIR}/${MIGCONFIG_FILE} ]]; then
         MIGSCRIPT_STATE="FAIL"
         logEvent "Missing ${MIGCONFIG_FILE}"
         ls -alh ${MIGSSTATE_DIR} &>${MIGCOMMAND_LOG}
         logCommand
         migExitError
     else 
-        source ${MIGCONFIG_FILE} || \
+        source ${MIGSSTATE_DIR}/${MIGCONFIG_FILE} || \
         { logCommand; migExitError; }
     fi
+
+    testBucketConnection
+
     
     [[ ! -f ${MIG_RAMDISK}/MIG_INIT_RAMDISK_OK ]] && migCreateRamdisk || \
     {
@@ -513,7 +614,6 @@ function mig2Balena {
         logEvent "${MIG_RAMDISK} was successfully mounted";
     }
 
-    [[ ! -f /root/${MIGBOOT_BKP_FILE} ]] && backupRaspbianBoot
 
     while [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SUCCESS ]]; do
         updateStateFSM
@@ -521,9 +621,15 @@ function mig2Balena {
         updateBootMigState
     done
 
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="mig2Balena.sh"
+    touch ${MIGSSTATE_DIR}/MIG_BALENA_SUCCESS
+
     MIGSCRIPT_STATE="END"
+    logEvent "BALENA MIGRATION SUCCESS"
+    
+    echo -e "" | tee -a ${MIGSCRIPT_LOG}
+    date | tee -a ${MIGSCRIPT_LOG}
+    echo -e "***********************************************" | tee -a ${MIGSCRIPT_LOG}
+    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
 }
 
 

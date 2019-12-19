@@ -1,7 +1,15 @@
 #!/bin/bash
 
+MIGOS_VERSION="$(git describe)"
+MIGOS_BALENA_FILENAME="migboot-migos-balena_${MIGOS_VERSION}.tgz"
+
+rm -f migboot* && \
+rm -rf boot && \
 pydo :build && \
-./gen_migos-boot.sh && \
-# rm boot/start4.elf boot/start4cd.elf boot/start4db.elf boot/start4x.elf && \
-# tar -czf migboot-migos-balena.tgz --owner=root --group=root boot/* && \
-scp migboot-migos-balena.tgz trecetp@10.0.0.211:/srv/http/balenaos/
+cd boot/ && \
+rm -f start4* fixup4* && \
+touch "MIGOS_${MIGOS_VERSION}" && \
+tar -czf ../${MIGOS_BALENA_FILENAME} --owner=root --group=root ./* && \
+cd .. && \
+scp ${MIGOS_BALENA_FILENAME} trecetp@10.0.0.211:/srv/http/balenaos/ && \
+rsync -av packages/migscripts/files/* trecetp@10.0.0.211:/srv/http/balenaos/scripts

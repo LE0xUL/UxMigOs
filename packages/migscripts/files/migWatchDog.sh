@@ -5,7 +5,11 @@ MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmdwatch.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migwatch.log"
-MIGBOOT_BKP_FILE="migboot-backup-raspbian.tgz"
+MIGBKP_RASPBIANBOOT="migboot-backup-raspbian.tgz"
+
+upSeconds="$(cat /proc/uptime | grep -o '^[0-9]\+')"
+upMins=$((${upSeconds} / 60))
+
 
 mkdir -p ${MIGSSTATE_DIR} &>/dev/null
 
@@ -62,7 +66,7 @@ function updateBootMigState {
     }
 
     if [[ -d  ${MIGSSTATEDIR_BOOT} ]]; then
-        cp -rv ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} && \
+        rsync -av ${MIGSSTATEDIR_ROOT} ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} && \
         logEvent "MIGSTATE_ROOT DIR UPDATED" && \
         umount ${MIGBOOT_DEV} &>>${MIGCOMMAND_LOG} && \
         logEvent "BOOT unmounted"  && \
@@ -86,7 +90,7 @@ function updateBootMigState {
 
 function restoreRaspianBoot {
 	logEvent "INI"
-	if [[ -f /root/${MIGBOOT_BKP_FILE} ]] ; then
+	if [[ -f /root/${MIGBKP_RASPBIANBOOT} ]] ; then
 		umount /dev/mmcblk0p1 &>/dev/null
 
 		logEvent "mount" && \
@@ -94,7 +98,7 @@ function restoreRaspianBoot {
 		logEvent "rm all" && \
 		rm -rf /mnt/boot/* &>>${MIGCOMMAND_LOG} && \
 		logEvent "tar -x" && \
-		tar -xzf /root/${MIGBOOT_BKP_FILE} -C /mnt &>>${MIGCOMMAND_LOG} && \
+		tar -xzf /root/${MIGBKP_RASPBIANBOOT} -C /mnt &>>${MIGCOMMAND_LOG} && \
 		logEvent "cp migstate" && \
 		cp -r ${MIGSSTATE_DIR} /mnt/boot/ &>>${MIGCOMMAND_LOG} && \
 		logEvent "reboot" && \
@@ -106,7 +110,7 @@ function restoreRaspianBoot {
 			logCommand
 		}
 	else
-		logEvent "Missing: /root/${MIGBOOT_BKP_FILE}"
+		logEvent "Missing: /root/${MIGBKP_RASPBIANBOOT}"
 	fi
 	logEvent "END"
 }

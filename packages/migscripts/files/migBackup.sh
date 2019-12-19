@@ -22,7 +22,7 @@ MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
 MIGDID="$(hostname)"
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
-MIGBOOT_BKP_FILE="/root/migboot-backup-raspbian.tgz"
+MIGBKP_RASPBIANBOOT="/root/migboot-backup-raspbian.tgz"
 
 MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
 MIGOS_BALENA_FILEPATH="/root/${MIGOS_BALENA_FILENAME}"
@@ -113,9 +113,9 @@ function backupBootPartition {
     MIGSCRIPT_STATE="INI"
     logEvent
 
-    cd /root && tar -czf ${MIGBOOT_BKP_FILE} /boot/* &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    cd /root && tar -czf ${MIGBKP_RASPBIANBOOT} /boot/* &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
     MIGSCRIPT_STATE="OK"
-    logEvent "Created boot backup file: ${MIGBOOT_BKP_FILE}"
+    logEvent "Created boot backup file: ${MIGBKP_RASPBIANBOOT}"
     
     # && sudo wget 10.0.0.210/balenaos/boot-ramdisk-60.tgz && sudo rm -rf /boot/* && sudo tar -xzvf boot-ramdisk-60.tgz -C / && sudo reboot
     
@@ -129,15 +129,15 @@ function migRestoreBoot {
     MIGSCRIPT_STATE="INI"
     logEvent
 
-    if [[ -f ${MIGBOOT_BKP_FILE} ]];then
+    if [[ -f ${MIGBKP_RASPBIANBOOT} ]];then
         rm -rf /boot/* &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
-        tar -xzf ${MIGBOOT_BKP_FILE} -C / &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+        tar -xzf ${MIGBKP_RASPBIANBOOT} -C / &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
 
         MIGSCRIPT_STATE="OK"
         logEvent "Restaured Backup in boot partition"
     else
         MIGSCRIPT_STATE="FAIL"
-        logEvent "Missing BackUp File: ${MIGBOOT_BKP_FILE}"
+        logEvent "Missing BackUp File: ${MIGBKP_RASPBIANBOOT}"
     fi
 
     MIGSCRIPT_STATE="END"

@@ -13,7 +13,7 @@ package = {
 }
 
 stage = this_dir / 'stage'
-scriptsdirfiles = this_dir / 'files/'
+scriptsdirfiles = this_dir / 'files'
 
 @command(produces=[package['target']])
 def build():
@@ -21,6 +21,8 @@ def build():
         f'rm -rf --one-file-system {stage}',
 
         f'mkdir -p {stage}/usr/bin',
+        
+	f'chmod +x {scriptsdirfiles}/mig*',
 
         f'cp {scriptsdirfiles}/nettool.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
