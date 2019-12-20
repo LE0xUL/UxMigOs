@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # wget -O - 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | bash
+# wget -O - 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | sudo bash
 # curl -s 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh' | bash
 
+MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 ## Device ID
 MIGDID="$(hostname)"
 MIGSSTATEDIR_BOOT="/boot/migstate"
@@ -11,8 +13,6 @@ MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/diagnostic.log"
-MIGSCRIPT_STAGE='STAGE'
-MIGSCRIPT_EVENT='EVENT'
 MIGSCRIPT_STATE='STATE'
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
 MIGMMC="/dev/mmcblk0"
@@ -43,7 +43,13 @@ function diagExitError {
 }
 
 function logCommand {
-    echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"CMDLOG"'", "msg":"' | \
+    echo '{"device":"'"${MIGDID}"'", '\
+    '"script":"migDiagnostic.sh", '\
+    '"function":"'"${FUNCNAME[1]}"'", '\
+    '"line":"'"${BASH_LINENO[0]}"'", '\
+    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+    '"state":"'"CMDLOG"'", '\
+    '"msg":"' | \
     cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
     echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG}
 
@@ -53,7 +59,13 @@ function logCommand {
 }
 
 function logEvent {
-    echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"${MIGSCRIPT_STATE}"'", "msg":"'"$1"'"}' | \
+    echo '{"device":"'"${MIGDID}"'", '\
+    '"script":"migDiagnostic.sh", '\
+    '"function":"'"${FUNCNAME[1]}"'", '\
+    '"line":"'"${BASH_LINENO[0]}"'", '\
+    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+    '"state":"'"${MIGSCRIPT_STATE}"'", '\
+    '"msg":"'"$1"'"}' | \
     tee -a ${MIGSCRIPT_LOG} /dev/tty | \
     curl -i -H "Accept: application/json" \
     -X POST \
@@ -62,8 +74,6 @@ function logEvent {
 }
 
 function validateOS {
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="Validate OS"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -93,8 +103,6 @@ function validateOS {
 
 # https://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/
 function validateRPI {
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="Validate RPI"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -126,8 +134,6 @@ function validateRPI {
 }
 
 function validateBootPartition {
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="Validate Boot Partition"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -227,8 +233,6 @@ function validateBootPartition {
 }
 
 function validationNetwork {
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="Validate Network conection"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -377,8 +381,6 @@ function testBucketConnection {
 }
 
 function iniDiagnostic {
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="migDiagnostic.sh"
     MIGSCRIPT_STATE="INI"
 
     testIsRoot
@@ -413,10 +415,8 @@ function iniDiagnostic {
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
 
-    MIGSCRIPT_STAGE="Diagnostic"
-    MIGSCRIPT_EVENT="migDiagnostic.sh"
     MIGSCRIPT_STATE="END"
-    logEvent
+    logEvent "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
 
     echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
     cat ${MIGCONFIG_FILE} | tee -a ${MIGSCRIPT_LOG}

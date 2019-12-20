@@ -5,6 +5,8 @@
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' | bash
 # curl 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' --output migBackup.sh
 
+MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
+
 MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
@@ -14,8 +16,6 @@ MIGNET_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
 
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/backup.log"
-MIGSCRIPT_STAGE='STAGE'
-MIGSCRIPT_EVENT='EVENT'
 MIGSCRIPT_STATE='STATE'
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
 ## Device ID
@@ -54,22 +54,37 @@ function bkpExitError {
 }
 
 function logCommand {
-    echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"CMDLOG"'", "msg":"' | \
-    cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
-    echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG}
-
+    echo '{"device":"'"${MIGDID}"'", '\
+    '"script":"migBackup.sh", '\
+    '"function":"'"${FUNCNAME[1]}"'", '\
+    '"line":"'"${BASH_LINENO[0]}"'", '\
+    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+    '"state":"'"CMDLOG"'", '\
+    '"msg":"' | \
+    cat - ${MIGCOMMAND_LOG} > temp.log && \
+    mv temp.log ${MIGCOMMAND_LOG} && \
+    echo '"}' >> ${MIGCOMMAND_LOG} && \
+    cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG} && \
     curl -X POST \
     -d "@${MIGCOMMAND_LOG}" \
-    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}"
+    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" || \
+    echo "${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" |& tee -a ${MIGSCRIPT_LOG}
 }
 
 function logEvent {
-    echo '{"device":"'"${MIGDID}"'", "stage":"'"${MIGSCRIPT_STAGE}"'", "event":"'"${MIGSCRIPT_EVENT}"'", "state":"'"${MIGSCRIPT_STATE}"'", "msg":"'"$1"'"}' | \
+    echo '{"device":"'"${MIGDID}"'", '\
+    '"script":"migBackup.sh", '\
+    '"function":"'"${FUNCNAME[1]}"'", '\
+    '"line":"'"${BASH_LINENO[0]}"'", '\
+    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+    '"state":"'"${MIGSCRIPT_STATE}"'", '\
+    '"msg":"'"$1"'"}' | \
     tee -a ${MIGSCRIPT_LOG} /dev/tty | \
     curl -i -H "Accept: application/json" \
     -X POST \
     --data @- \
-    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || logCommand
+    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || \
+    logCommand
 }
 
 function backupFile {
@@ -88,8 +103,6 @@ function backupFile {
 }
 
 function backupSystemFiles {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="System Files"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -108,8 +121,6 @@ function backupSystemFiles {
 }
 
 function backupBootPartition {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="Boot Partition"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -124,8 +135,6 @@ function backupBootPartition {
 }
 
 function migRestoreBoot {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="Restore boot Backup"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -145,8 +154,6 @@ function migRestoreBoot {
 }
 
 function installMIGOS {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="MIGOS to boot"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -165,8 +172,6 @@ function installMIGOS {
 }
 
 function migState2Boot {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="migState to Boot"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -185,8 +190,6 @@ function migState2Boot {
 }
 
 function makeNetFiles {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="NET Files"
     MIGSCRIPT_STATE="INI"
     logEvent
 
@@ -310,8 +313,6 @@ function testMigStateExist {
 }
 
 function iniBackupSystem {
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="migBackup.sh"
     MIGSCRIPT_STATE="INI"
 
     testIsRoot
@@ -344,10 +345,8 @@ function iniBackupSystem {
 
     migState2Boot
 
-    MIGSCRIPT_STAGE="Backup"
-    MIGSCRIPT_EVENT="migBackup.sh"
     MIGSCRIPT_STATE="END"
-    logEvent
+    logEvent "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
 
     # echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
     # cat ${MIGCONFIG_FILE} | tee -a ${MIGSCRIPT_LOG}

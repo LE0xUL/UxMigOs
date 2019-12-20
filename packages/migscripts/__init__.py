@@ -28,6 +28,7 @@ def build():
         f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migDiagnostic.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migWatchDog.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/migBootRaspbian.sh {stage}/usr/bin/',
 
         f'tar -C {stage} -czf {package["target"]} .',
     ])

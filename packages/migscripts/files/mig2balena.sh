@@ -26,6 +26,10 @@ MIGBUCKET_FILETEST='testbucketconnection.file'
 MIGBUCKET_ATTEMPTNUM=0
 MIGBUCKET_ATTEMPTMAX=5
 
+MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
+MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
+MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
+
 MIG_FILE_RESIN_SFDISK="resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk.gz"
 MIG_FILE_RESIN_ROOTA='p2-resin-rootA.img.gz'
 MIG_FILE_RESIN_ROOTB='p3-resin-rootB.img.gz'
@@ -50,23 +54,30 @@ function migExitError {
 }
 
 # En caso de error, envia log del comando a la web
-function logCommand 
-{
-    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | INI | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+function logCommand {
+    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | INI | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
-    if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]]; then
-        echo '{"device":"'"${MIGDID}"'", "script":"'"${BASH_SOURCE[1]##*/}"'", "function":"'"${FUNCNAME[1]}"'", "line":"'"${BASH_LINENO[0]}"'", "state":"'"CMDLOG"'", "msg":"' | \
-        cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
-        echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG}
-
+    if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
+        echo '{"device":"'"${MIGDID}"'", '\
+        '"script":"mig2balena.sh", '\
+        '"function":"'"${FUNCNAME[1]}"'", '\
+        '"line":"'"${BASH_LINENO[0]}"'", '\
+        '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+        '"state":"'"CMDLOG"'", '\
+        '"msg":"' | \
+        cat - ${MIGCOMMAND_LOG} > temp.log && \
+        mv temp.log ${MIGCOMMAND_LOG} && \
+        echo '"}' >>${MIGCOMMAND_LOG} && \
+        cat ${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG} && \
         curl -X POST \
         -d "@${MIGCOMMAND_LOG}" \
-        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG}
+        "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG} || \
+        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
     else
-        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | FAIL | Can not send CMDLOG, No network" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, No network" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
     fi
 
-    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | END | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+    echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | END | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
     return 0
 }
@@ -74,16 +85,22 @@ function logCommand
 # Guarda log de evento en el archivo de log, lo muestra por kmsg y lo envia a la web
 function logEvent {
     #TODO: touch Alive file for Watchdog
-    if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]]; then
+    if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
         >${MIGCOMMAND_LOG}
-        echo '{"device":"'"${MIGDID}"'", "script":"'"${BASH_SOURCE[1]##*/}"'", "function":"'"${FUNCNAME[1]}"'", "line":"'"${BASH_LINENO[0]}"'", "state":"'"${MIGSCRIPT_STATE}"'", "msg":"'"$1"'"}' | \
+        echo '{"device":"'"${MIGDID}"'", '\
+        '"script":"mig2balena.sh", '\
+        '"function":"'"${FUNCNAME[1]}"'", '\
+        '"line":"'"${BASH_LINENO[0]}"'", '\
+        '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
+        '"state":"'"${MIGSCRIPT_STATE}"'", '\
+        '"msg":"'"$1"'"}' | \
         tee -a ${MIGSCRIPT_LOG} /dev/kmsg /dev/tty | \
         curl -i -H "Accept: application/json" \
         -X POST \
         --data @- \
         "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>>${MIGCOMMAND_LOG} || logCommand
     else
-        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | ${MIGSCRIPT_STATE} | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+        echo -e "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | ${MIGSCRIPT_STATE} | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
     fi
 
     return 0
@@ -96,7 +113,7 @@ function updateBootMigState {
 
     MIGSCRIPT_STATE="OK"
 
-    umount ${MIGBOOT_DEVICE} &>/dev/null
+    umount ${MIGBOOT_DEVICE} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG}
 
     mount ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>${MIGCOMMAND_LOG} && \
     logEvent "BOOT mounted"  || \
@@ -132,65 +149,67 @@ function updateBootMigState {
 
 function migRestoreNetworkConfig {
     MIGSCRIPT_STATE="INI"
-
     logEvent
 
-    MIGSCRIPT_STATE="OK"
-
     if [[ -f ${MIGSSTATE_DIR}/en.network ]]; then
-        cp ${MIGSSTATE_DIR}/en.network /etc/systemd/network/en.network &>>${MIGSCRIPT_LOG} && \
+        >${MIGCOMMAND_LOG}
+        cp -v ${MIGSSTATE_DIR}/en.network /etc/systemd/network/en.network |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
         { 
-            MIGSCRIPT_STATE="OK";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_OK;
-            logEvent "ETH CONFIG" &>>${MIGSCRIPT_LOG};
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ETH_CONFIG_OK
+            logEvent "ETH CONFIG"
         } || \
         { 
-            MIGSCRIPT_STATE="ERROR";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_FAIL;
-            logEvent "ETH CONFIG" &>>${MIGSCRIPT_LOG};
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ETH_CONFIG_FAIL
+            logCommand
+            logEvent "ETH CONFIG"
         }
     else
-        MIGSCRIPT_STATE="FAIL";
-        # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_ETH_CONFIG_NOT_FOUND
-        logEvent "ETH CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
+        MIGSCRIPT_STATE="FAIL"
+        touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ETH_CONFIG_NOT_FOUND
+        logEvent "ETH CONFIG NOT FOUND"
     fi
 
     if [[ -f ${MIGSSTATE_DIR}/wlan0.network ]]; then
-        cp ${MIGSSTATE_DIR}/wlan0.network /etc/systemd/network/wlan0.network &>>${MIGSCRIPT_LOG} && \
+        >${MIGCOMMAND_LOG}
+        cp -v ${MIGSSTATE_DIR}/wlan0.network /etc/systemd/network/wlan0.network |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
         { 
-            MIGSCRIPT_STATE="OK";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; 
-            logEvent "WLAN CONFIG" &>>${MIGSCRIPT_LOG}; 
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_WLAN_CONFIG_OK
+            logEvent "WLAN CONFIG" 
         } || \
         { 
-            MIGSCRIPT_STATE="ERROR";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_NETWORK_WLAN_CONFIG_FAIL; 
-            logEvent "WLAN CONFIG" &>>${MIGSCRIPT_LOG}; 
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_WLAN_CONFIG_FAIL
+            logCommand
+            logEvent "WLAN CONFIG" 
         }
     else
-        MIGSCRIPT_STATE="FAIL";
-        # touch ${MIGSSTATE_DIR}/MIG_INIT_WLAN_CONFIG_NOT_FOUND
-        logEvent "WLAN CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
+        MIGSCRIPT_STATE="FAIL"
+        touch ${MIGSSTATE_DIR}/MIG_BALENA_WLAN_CONFIG_NOT_FOUND
+        logEvent "WLAN CONFIG NOT FOUND"
     fi
 
     if [[ -f ${MIGSSTATE_DIR}/wpa_supplicant.conf.bkp ]]; then
-        mkdir -p /etc/wpa_supplicant/ &>>${MIGSCRIPT_LOG} && \
-        cp ${MIGSSTATE_DIR}/wpa_supplicant.conf.bkp /etc/wpa_supplicant/wpa_supplicant.conf &>>${MIGSCRIPT_LOG} && \
+        >${MIGCOMMAND_LOG}
+        mkdir -vp /etc/wpa_supplicant/ |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+        cp -v ${MIGSSTATE_DIR}/wpa_supplicant.conf.bkp /etc/wpa_supplicant/wpa_supplicant.conf |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
         { 
-            MIGSCRIPT_STATE="OK";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_OK; 
-            logEvent "WPA CONFIG" &>>${MIGSCRIPT_LOG};
-            /sbin/wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -Dnl80211,wext -iwlan0 &>>${MIGSCRIPT_LOG};
+            MIGSCRIPT_STATE="OK"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_WPA_CONFIG_OK
+            logEvent "WPA CONFIG"
+            /sbin/wpa_supplicant -c/etc/wpa_supplicant/wpa_supplicant.conf -Dnl80211,wext -iwlan0 &>>${MIGSCRIPT_LOG}
         } || \
         { 
-            MIGSCRIPT_STATE="ERROR";
-            # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_FAIL; 
-            logEvent "WPA CONFIG" &>>${MIGSCRIPT_LOG};
+            MIGSCRIPT_STATE="ERROR"
+            touch ${MIGSSTATE_DIR}/MIG_BALENA_WPA_CONFIG_FAIL
+            logEvent "WPA CONFIG"
         }
     else
-        MIGSCRIPT_STATE="FAIL";
-        # touch ${MIGSSTATE_DIR}/MIG_INIT_WPA_CONFIG_NOT_FOUND
-        logEvent "WPA CONFIG NOT FOUND" &>>${MIGSCRIPT_LOG}
+        MIGSCRIPT_STATE="FAIL"
+        touch ${MIGSSTATE_DIR}/MIG_BALENA_WPA_CONFIG_NOT_FOUND
+        logEvent "WPA CONFIG NOT FOUND"
     fi
 
     MIGSCRIPT_STATE="END"
@@ -251,9 +270,10 @@ function migStateInit {
         MIGSCRIPT_STATE="FAIL"
         touch ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MIGSTATE_BOOT_NOT_FOUND_ERROR
         logEvent "${MIGSSTATEDIR_BOOT} NOT FOUND"
-        ls -alh ${MIGBOOT_MOUNTDIR} |& tee -a ${MIGSCRIPT_LOG}
-        echo "=============" |& tee -a ${MIGSCRIPT_LOG}
-        ls -alh ${MIGSSTATEDIR_BOOT} |& tee -a ${MIGSCRIPT_LOG}
+        ls -alh ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG}
+        echo "=============" &>>${MIGSCRIPT_LOG}
+        ls -alh ${MIGSSTATEDIR_BOOT} &>>${MIGSCRIPT_LOG}
+        echo "=============" &>>${MIGSCRIPT_LOG}
     fi
 
     if [[ -f ${MIGSSTATEDIR_ROOT}/MIG_BALENA_MOUNT_BOOT_OK ]]; then
@@ -301,25 +321,25 @@ function migStateInit {
 
 function migCreateRamdisk {
     MIGSCRIPT_STATE="INI"
-    
     logEvent
 
-    umount ${MIG_RAMDISK} &>/dev/null
+    umount -v ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG}
 
-    mkdir -p ${MIG_RAMDISK} &>${MIGSCRIPT_LOG} && \
-    rm -rf ${MIG_RAMDISK}/* &>>${MIGSCRIPT_LOG} && \
-    mount -t tmpfs -o size=400M tmpramdisk ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
+    >${MIGSCRIPT_LOG}
+    mkdir -vp ${MIG_RAMDISK} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+    rm -vrf ${MIG_RAMDISK}/* |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
+    mount -vt tmpfs -o size=400M tmpramdisk ${MIG_RAMDISK} |& tee -a ${MIGSCRIPT_LOG} ${MIGCOMMAND_LOG} && \
     {
-        # touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_OK ;
-        MIGSCRIPT_STATE="OK";
-        logEvent "RAMDISK" &>>${MIGSCRIPT_LOG};
+        MIGSCRIPT_STATE="OK"
+        touch ${MIG_RAMDISK}/MIG_BALENA_RAMDISK_OK
+        logEvent "RAMDISK"
     } || \
     { 
-        # touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_FAIL;
-        MIGSCRIPT_STATE="ERROR";
-        logEvent;
-        logCommand;
-        migExitError;
+        MIGSCRIPT_STATE="ERROR"
+        touch ${MIG_RAMDISK}/MIG_BALENA_RAMDISK_ERROR
+        logCommand
+        logEvent
+        migExitError
     }
 
     MIGSCRIPT_STATE="END"
@@ -399,7 +419,7 @@ function testBucketConnection {
     MIGSCRIPT_STATE="INI"
 
     [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR
-    [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK ]] && rm ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK
+    [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] && rm ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK
 
 	until $(wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${MIGBUCKET_FILETEST} &>>${MIGSCRIPT_LOG}"); do
 		if [ ${MIGBUCKET_ATTEMPTNUM} -eq ${MIGBUCKET_ATTEMPTMAX} ];then
@@ -415,7 +435,7 @@ function testBucketConnection {
 	    sleep 10
 	done
     
-    touch ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_OK
+    touch ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK
     
     MIGSCRIPT_STATE="END"
     logEvent
@@ -582,15 +602,15 @@ function mig2Balena {
     # try to restore migstate config and network config
     [[ ! -f ${MIGSSTATE_DIR}/MIG_INIT_MIGSTATE_BOOT_FOUND ]] && migStateInit || \
     {
-        MIGSCRIPT_STATE="OK";
-        logEvent "/init was successfully completed";
+        MIGSCRIPT_STATE="OK"
+        logEvent "/init was successfully completed"
     }
 
     # try to copy backup raspbian boot
     [[ ! -f /root/${MIGBKP_RASPBIANBOOT} ]] && backupRaspbianBoot || \
     {
-        MIGSCRIPT_STATE="OK";
-        logEvent "${MIGBKP_RASPBIANBOOT} found in /root";
+        MIGSCRIPT_STATE="OK"
+        logEvent "${MIGBKP_RASPBIANBOOT} found in /root"
     }
 
     if [[ ! -f ${MIGSSTATE_DIR}/${MIGCONFIG_FILE} ]]; then
