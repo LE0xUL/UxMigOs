@@ -109,7 +109,82 @@ You can view another options running:
 
 The build produces a boot/ directory containing everything needed to boot.
 
-Run `./gen_migos-boot.sh` to generate a fit `tgz` file and extract it onto blank
-boot fat partition on the SD card, normally `/dev/mmcblk0p1`.
+Run `./go.sh` to generate a fit `tgz` file and extract it onto blank boot fat partition on the SD card, normally `/dev/mmcblk0p1`.
 
+# Migration Scripts
 
+Onto dir `/packages/migscripts` are the scripts that wil be executed automatically by the MIGOS system or by hand for the user.
+
+Those scripts are in the bucked called `balenamigration` inside folder [migscripts](https://console.cloud.google.com/storage/browser/balenamigration/migscripts/?project=admobilize-testing)
+
+The idea is that all scripts can be executed remotely, see the documentation for more explanations.
+
+## Scripts logs
+
+All scripts generate a remote log that is stored in [insightOps](https://insight.rapid7.com) inside a logset called `BalenaMigration`
+
+The logset `BalenaMigration/eventLog` store the highlights of the migration process while the logset `BalenaMigration/commandLog` store the detail output of certain commands inside scripts.
+
+All remote logs are in `json` format and have the following fields:
+  
+  * device: ID of device.
+  * script: name of the script.
+  * function: name of the function.
+  * line: Number of line that generate the log entrie.
+  * uptime: timestamp
+  * state: Result of the event. Can be `INI`, `OK`, `ERROR`, `FAIL` or `CMDLOG`
+  * msg: Aditional info.
+
+Aditionally a full detailed log is stored using the service of [transfer.sh](https://transfer.sh/) the URL of this log can be find in the `BalenaMigration/eventLog` under the `log2transfer` function name.
+
+## Order of manual execution scripts
+
+Execute those scripts in the RaspbianOS system that will be migrated to the BalenaOS.
+
+```
+______________________
+|                    |  * Validate Raspian version and RPI version
+|                    |  * Validate Partition geometry of MMC
+|  migDiagnostic.sh  |  * Validate Network connection and configuration
+|                    |  * Validate AdBeacons configurations
+|____________________|  * Generate mig.config
+          ||
+__________\/__________
+|                    |  * BackUp Raspbian Boot Partition
+|    migBackup.sh    |  * BackUp system configuration files
+|____________________|  * Make Net configuration files for MIGOS
+          ||
+__________\/__________
+|                    |  * Delete Boot files of Raspbian
+|     migInit.sh     |  * Download and install the last version of MIGOS
+|____________________|  * Reboot the system to initiate the migration process
+```
+
+If each script generate a successfull result the next script can be executed.
+If any script fail, pay atention to logs, to determinate the source of the error. 
+
+## Order of automatic excution scripts
+
+Those scrips are executed automatically by the systemd services of MIGOS
+
+```
+               ____________________
+               |                  |  * Validate MMC
+               |                  |  * Validate migstate dir
+               |      /init       |  * Create Ramdisk
+               |                  |  * Copy Config network
+               |__________________|  * Copy RaspbianBootBackup
+                ||              ||
+________________\/___        ___\/_________________    ________________________
+|                   |        |                    |    |                      |
+|   mig2balena.sh   |        |   migWatchDog.sh   | => |  migBootRaspbian.sh  |
+|___________________|        |____________________|    |______________________|
+
+* FSM to download             * Test Network            * Restore original
+  and install all             * Test FSM                  boot files of 
+  partitions of               * Restore mig2balena        Raspbian
+  BalenaOS                    * reboot system
+
+```
+
+## How to execute remotely via Pusher Service

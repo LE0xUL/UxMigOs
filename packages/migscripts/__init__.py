@@ -25,8 +25,9 @@ def build():
 	f'chmod +x {scriptsdirfiles}/mig*',
 
         f'cp {scriptsdirfiles}/nettool.sh {stage}/usr/bin/',
-        f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
-        f'cp {scriptsdirfiles}/migDiagnostic.sh {stage}/usr/bin/',
+        # f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
+        # f'cp {scriptsdirfiles}/migDiagnostic.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/mig2balena.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migWatchDog.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migBootRaspbian.sh {stage}/usr/bin/',
 

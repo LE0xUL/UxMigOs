@@ -77,8 +77,13 @@ function restoreRaspianBoot {
 
     logEvent "mount" && \
     mount -v ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    logEvent "res" && \
+    logEvent "make migstate boot backup" && \
+    cp -rv ${MIGSSTATEDIR_BOOT} /tmp &>>${MIGSCRIPT_LOG} && 
 
+
+
+
+    
     logEvent "rm all" && \
     rm -rf ${MIGBOOT_MOUNTDIR}/* &>>${MIGSCRIPT_LOG} && \
     logEvent "tar -x" && \
