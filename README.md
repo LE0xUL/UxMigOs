@@ -132,7 +132,7 @@ All remote logs are in `json` format and have the following fields:
   * function: name of the function.
   * line: Number of line that generate the log entrie.
   * uptime: timestamp
-  * state: Result of the event. Can be `INI`, `OK`, `ERROR`, `FAIL` or `CMDLOG`
+  * state: Result of the event. Can be `INI`, `END`, `OK`, `ERROR`, `FAIL`, `SUCCESS` or `CMDLOG`
   * msg: Aditional info.
 
 Aditionally a full detailed log is stored using the service of [transfer.sh](https://transfer.sh/) the URL of this log can be find in the `BalenaMigration/eventLog` under the `log2transfer` function name.
@@ -187,4 +187,20 @@ ________________\/___        ___\/_________________    ________________________
 
 ```
 
-## How to execute remotely via Pusher Service
+## How to execute remotely via Pusher Script
+
+The `migPusher.sh` script send the command to execute remotely some MIGOS scripts.
+
+The usage structure is: `./migPusher.sh <Device ID> <Script name>` where:
+  * The `<Device ID>` will be in HEX format in lowercase
+  * The `<Script name>` can be: `diagnostic`, `backup`, or `init`
+
+Example:
+```
+./migPusher.sh b8_27_eb_a0_a8_71 diagnost
+./migPusher.sh b8_27_eb_a0_a8_71 back
+./migPusher.sh b8_27_eb_a0_a8_71 in
+```
+> The output of this script only say if the "pusher command" can be send or fail, to see the result of each script executed remotely is necessary see the log in the `insightOps` platform (see above)
+
+

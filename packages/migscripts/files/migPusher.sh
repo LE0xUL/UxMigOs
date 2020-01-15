@@ -1,57 +1,120 @@
 #!/bin/bash
 
-appID="367382"
-key="8142387dbc68b5841187"
-secret="48919b4f619b6dd8ca4b"
-cluster="us2"
+MIGSCRIPT_LOG="pusher.log"
+
+ERRORMSG=""
+
+APP_ID="367382"
+APP_KEY="8142387dbc68b5841187"
+APP_SECRET="48919b4f619b6dd8ca4b"
+APP_CLUSTER="us2"
+
+date &>${MIGSCRIPT_LOG}
+
+function PrintHelp {
+    echo "ERROR: ${ERRORMSG}"
+    echo "usage: ./migPusher.sh <Device ID> <Script name>"
+    echo ""
+    echo "It's necesary both the Device ID and the script name"
+    echo ""
+    echo "The <Device ID> will be in HEX format"
+    echo "The <Script name> can be: diagnostic, backup, or init"
+    echo ""
+    echo "example:"
+    echo "./migPusher.sh b8_27_eb_a0_a8_71 diagnostic"
+    echo ""
+}
+
+echo "command line: $@" &>>${MIGSCRIPT_LOG}
+echo "number: $#" &>>${MIGSCRIPT_LOG}
+
+for arg in "$@"
+do
+    echo "$arg" &>>${MIGSCRIPT_LOG}
+done
+
+echo "" &>>${MIGSCRIPT_LOG}
+
+if [[ 0 -eq $# ]]; then
+    ERRORMSG="Mising Parameters"
+    echo ${ERRORMSG} &>>${MIGSCRIPT_LOG}
+    PrintHelp
+    exit 1
+fi
+
+if [[ 2 -ne $# ]]; then
+    ERRORMSG="Bad Parameters"
+    echo ${ERRORMSG} &>>${MIGSCRIPT_LOG}
+    PrintHelp
+    exit 1
+fi
+
+# [[ "$2" =~ ^([[:xdigit:]]{2}_){5}[[:xdigit:]]{2}$ ]] && echo "valid" || echo "invalid"
+if [[ "$1" =~ ^([a-f0-9]{2}_){5}[a-f0-9]{2}$ ]]; then
+    echo "Valid devID" &>>${MIGSCRIPT_LOG}
+    MIGDID=$1
+else
+    ERRORMSG="Invalid Device ID"
+    echo ${ERRORMSG} &>>${MIGSCRIPT_LOG}
+    PrintHelp
+    exit 1
+fi
+
+if [[ $2 = "diagnostic" ]] || [[ $2 = "backup" ]] || [[ $2 = "init" ]]; then
+    echo "Valid Script name" &>>${MIGSCRIPT_LOG}
+else
+    ERRORMSG="Invalid Script name"
+    echo ${ERRORMSG} &>>${MIGSCRIPT_LOG}
+    PrintHelp
+    exit 1
+fi
+
+case $2 in
+    'diagnostic')
+        MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh | bash"
+        ;;
+    
+    'backup')
+        MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh | bash"
+        ;;
+
+    'init')
+        MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migInit.sh | bash"
+        ;;
+esac
 
 timestamp=$(date +%s)
-echo "timestamp: $timestamp"
+echo "timestamp: $timestamp" &>>${MIGSCRIPT_LOG}
 
-data='{"name":"request","channel":"b8_27_eb_a0_a8_71","data":"{\"command\":\"hostname\"}"}'
 # data='{"data":"{\"message\":\"Hola!!!\"}","name":"my-event","channel":"my-channel"}'
-echo "data: $data"
+data='{"name":"request","channel":"'"${MIGDID}"'","data":"{\"command\":\"'"${MIGCMD}"'\"}"}'
+echo "data: $data" &>>${MIGSCRIPT_LOG}
 
 # Be sure to use `printf %s` to prevent a trailing \n from being added to the data.
 md5data=$(printf '%s' "$data" | md5sum | awk '{print $1;}')
-echo "md5data: ${md5data}"
+echo "md5data: ${md5data}" &>>${MIGSCRIPT_LOG}
 
-path="/apps/${appID}/events"
-queryString="auth_key=${key}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${md5data}"
-echo "queryString: $queryString"
+path="/apps/${APP_ID}/events"
+echo "path: ${path}" &>>${MIGSCRIPT_LOG}
+
+queryString="auth_key=${APP_KEY}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${md5data}"
+echo "queryString: $queryString" &>>${MIGSCRIPT_LOG}
 
 # Be sure to use a multi-line, double quoted string that doesn't end in \n as 
 # input for the SHA-256 HMAC.
 authSig=$(printf '%s' "POST
 $path
-$queryString" | openssl dgst -sha256 -hex -hmac "$secret" | awk '{print $2;}')
-echo "auth_signature: ${authSig}"
+$queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2;}')
+echo "auth_signature: ${authSig}" &>>${MIGSCRIPT_LOG}
 
-# curl -i -H "Content-Type: application/json" -d "$data" "https://api-${cluster}.pusher.com${path}?${queryString}&auth_signature=${authSig}"
-# curl -vH "Content-Type: application/json" -d "$data" "http://api.pusherapp.com${path}?${queryString}&auth_signature=${authSig}"
-# curl -v -H "Content-Type:application/json" -d "$data" -X POST "https://api-${cluster}.pusher.com${path}?${queryString}&auth_signature=${authSig}"
-# curl -v -H "Content-Type: application/json" -d "event%5Bchannel=b8_27_eb_a0_a8_71&event%5Bevent_name%5D=request&event%5Bdata%5D=%7B%0D%0A++%22command%22%3A+%22pwd%22%0D%0A%7D" "https://api-${cluster}.pusher.com${path}?${queryString}&auth_signature=${authSig}"
+curl -vH "Content-Type: application/json" -d "$data" "https://api-${APP_CLUSTER}.pusher.com${path}?${queryString}&auth_signature=${authSig}" &>>${MIGSCRIPT_LOG}
 
-curl -iH 'Content-Type: application/json' -d "${data}" -X POST \
-"https://api-${cluster}.pusher.com${path}?"\
-"body_md5=${md5data}&"\
-"auth_version=1.0&"\
-"auth_key=${key}&"\
-"auth_timestamp=${timestamp}&"\
-"auth_signature=${authSig}&"
-
-# curl -vH 'Content-Type: application/json' -d '{"data":"{\"message\":\"hello world\"}","name":"my-event","channel":"my-channel"}' \
-# "https://api-us2.pusher.com/apps/367382/events?"\
-# "body_md5=2c99321eeba901356c4c7998da9be9e0&"\
+# curl -iH 'Content-Type: application/json' -d "${data}" -X POST \
+# "https://api-${APP_CLUSTER}.pusher.com${path}?"\
+# "body_md5=${md5data}&"\
 # "auth_version=1.0&"\
-# "auth_key=8142387dbc68b5841187&"\
-# "auth_timestamp=1579023829&"\
-# "auth_signature=54c431255cf7b5fccaff0c0595d6e4e165545d1fa3b867d5409efbdef98a5684&"
+# "auth_key=${APP_KEY}&"\
+# "auth_timestamp=${timestamp}&"\
+# "auth_signature=${authSig}&"
 
-# curl -vH "Content-Type: application/json" -d '{"name":"request","channel":"b8_27_eb_a0_a8_71","data":"{\"command\":\"hostname\"}"}' "http://api.pusherapp.com/apps/367382/events?auth_key=8142387dbc68b5841187&auth_timestamp=1579022230&auth_version=1.0&body_md5=774aa2ad36d6044d4661b78e95187390&auth_signature=c2560809d6cab2f48c8822159d0abf5f4a7a9a53641515dd71c9dab53ac9b659"
-# curl -vH "Content-Type: application/json" -d '{"name":"request","channel":"b8_27_eb_a0_a8_71","data":"{\"command\":\"hostname\"}"}' "https://api-us2.pusher.com/apps/367382/events?auth_key=8142387dbc68b5841187&auth_timestamp=1579022230&auth_version=1.0&body_md5=774aa2ad36d6044d4661b78e95187390&auth_signature=c2560809d6cab2f48c8822159d0abf5f4a7a9a53641515dd71c9dab53ac9b659"
-
-# 400 Request body is malformed (invalid JSON).
-# 400 Bad Request
-# I have to admit, this is my favorite status code 😂. Every time I get slammed with 400 Bad Request red error on my console, I first look up and ask “What kind of life did I choose?” before I proceed to investigate it.
-# Bad requests occur when the client sends a request with either incomplete data, badly constructed data or invalid data. Many times, it could be the fault of the developer who did not specify properly what kind of data they expect. Be that as it may, it happens because the data you sent to a request is incorrect.
+# https://dashboard.pusher.com/apps/367382/getting_started
