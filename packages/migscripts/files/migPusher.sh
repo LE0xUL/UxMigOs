@@ -1,12 +1,17 @@
 #!/bin/bash
-MIGSCRIPT_LOG="pusher.log"
 
+# TODO
+# - weblogs events to logentries
+# - send logfile to transfer and weblog
+
+MIGSCRIPT_LOG="pusher.log"
 ERRORMSG=""
 
 APP_ID="367382"
 APP_KEY="8142387dbc68b5841187"
 APP_SECRET="48919b4f619b6dd8ca4b"
 APP_CLUSTER="us2"
+API_KEY='-aP8iW3jzXcNxoHIGFlrrVIsTOkQiK5Y3gopCYJhLCQ'
 
 # exec 3>&1 4>&2
 # trap 'exec 2>&4 1>&3' 0 1 2 3
@@ -139,8 +144,14 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
             echo "ERROR: The pusher command can't be found" |& tee -a ${MIGSCRIPT_LOG}
             exit $LINENO
         elif [[ 0 -ne ${result} ]]; then
-            echo "ERROR: Run 'pusher login' first." |& tee -a ${MIGSCRIPT_LOG}
-            exit $LINENO
+            # echo "ERROR: Run 'pusher login' first." |& tee -a ${MIGSCRIPT_LOG}
+            # exit $LINENO
+            echo "Try login to pusher" &>> ${MIGSCRIPT_LOG}
+            ( echo ${API_KEY} ) | pusher login &>> ${MIGSCRIPT_LOG}
+            if [[ 0 -ne $? ]]; then
+                echo "ERROR: Can't login in pusherCLI" |& tee -a ${MIGSCRIPT_LOG}
+                exit $LINENO
+            fi
         fi
 
         if [[ $3 = "subscribe" ]]; then

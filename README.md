@@ -116,7 +116,7 @@ All remote logs are in `json` format and have the following fields:
   * function: name of the function.
   * line: Number of the line that generates the log entry.
   * uptime: Kernel timestamp
-  * state: Result of the event. Can be `INI`, `END`, `OK`, `ERROR`, `FAIL`, `SUCCESS` or `CMDLOG`
+  * state: Result of the event. Can be `INI`, `END`, `OK`, `ERROR`, `FAIL`, `SUCCESS`, `EXIT` or `CMDLOG`
   * msg: Aditional info.
 
 Additionally a full detailed log is stored using the service of [transfer.sh](https://transfer.sh/) the URL of this log can be found in the `BalenaMigration/eventLog` under the `log2transfer` function name.
@@ -141,7 +141,7 @@ __________\/__________
 __________\/__________
 |                    |  * Delete Boot files of Raspbian
 |     migInit.sh     |  * Download and install the last version of MIGOS
-|____________________|  * Reboot the system to initiate the migration process
+|____________________|  * Reboot the system to initiate the migration process (MIGOS)
 ```
 
 If each script generates a successful result the next script can be executed.
@@ -159,14 +159,14 @@ Those scrips are executed automatically by the systemd services of MIGOS
                |                  |  * Config network connection
                |__________________|  * Copy RaspbianBootBackup
                 ||              ||
-________________\/___        ___\/_________________    ________________________
-|                   |        |                    |    |                      |
-|   mig2balena.sh   |        |   migWatchDog.sh   | => |  migBootRaspbian.sh  |
-|___________________|        |____________________|    |______________________|
+________________\/___        ___\/_________________    ___________________________
+|                   |        |                    |    |                         |
+|   mig2balena.sh   |   <==  |   migWatchDog.sh   | => |  migRestoreRaspBoot.sh  |
+|___________________|        |____________________|    |_________________________|
 
-* FSM to download             * Test Network            * Restore original
-  and install all             * Test FSM                  boot files of 
-  partitions of               * Restore mig2balena        Raspbian
+* FSM to download             * Test Network            * Validate and restore
+  and install all             * Test FSM                  original boot files of 
+  partitions of               * Restart mig2balena        Raspbian
   BalenaOS                    * reboot system
 
 ```
@@ -194,11 +194,9 @@ Example:
 
 ## How to execute remotely via Pusher CLI
 
-First download and install the last version, the instruccions are [here](https://pusher.com/docs/channels/pusher_cli/overview)
+First, is nessesary download and install the last version of **Pusher CLI**, the instruccions are [here](https://pusher.com/docs/channels/pusher_cli/overview)
 
-Once installated, run `pusher login` and insert the follow **API Key**: `-aP8iW3jzXcNxoHIGFlrrVIsTOkQiK5Y3gopCYJhLCQ`
-
-To see the response of each pusher event you can run: `./migPusher.sh cli <Device ID> subscribe`
+If you want see the response of each pusher event sent, you can run `./migPusher.sh cli <Device ID> subscribe` in a parallel console.
 
 Example:
 
