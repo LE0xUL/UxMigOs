@@ -11,8 +11,8 @@ MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmdbootraspbian.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migbootraspbian.log"
 MIGBKP_RASPBIANBOOT="migboot-backup-raspbian.tgz"
 
-MIGBOOT_MOUNTDIR='/boot'
 MIGBOOT_DEVICE='/dev/mmcblk0p1'
+MIGBOOT_MOUNTDIR='/mnt/boot'
 MIGROOTFS_DEVICE='/dev/mmcblk0p2'
 MIGROOTFS_MOUNTDIR='/mnt/rootfs'
 
@@ -47,7 +47,6 @@ function logCommand {
 
 # Guarda log de evento en el archivo de log, lo muestra por kmsg y lo envia a la web
 function logEvent {
-    #TODO: touch Alive file for Watchdog
     if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
         >${MIGCOMMAND_LOG}
         echo '{"device":"'"${MIGDID}"'", '\
@@ -69,20 +68,25 @@ function logEvent {
     return 0
 }
 
+function exitError {
+    touch ${MIGSSTATE_DIR}/MIG_RESTORE_RASPBIAN_BOOT_FAIL
+    MIGSCRIPT_STATE="EXIT"
+    logEvent "${BASH_SOURCE[1]##*/}:${FUNCNAME[1]}[${BASH_LINENO[0]}]"
+    #TODO: sent logfile to transfer.sh
+    exit 1
+}
 
 function restoreRaspianBoot {
-	logEvent "INI"
+	MIGSCRIPT_STATE="INI"
+    logEvent
 
-    umount -v ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG}
+    umount -v ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG} || exitError
+    mkdir -vp ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} || exitError
 
     logEvent "mount" && \
     mount -v ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    logEvent "make migstate boot backup" && \
+    logEvent "migstate boot backup" && \
     cp -rv ${MIGSSTATEDIR_BOOT} /tmp &>>${MIGSCRIPT_LOG} && 
-
-
-
-
     
     logEvent "rm all" && \
     rm -rf ${MIGBOOT_MOUNTDIR}/* &>>${MIGSCRIPT_LOG} && \
@@ -104,6 +108,7 @@ function restoreRaspianBoot {
 	
 }
 
+function mainRestoreRaspBoot
 
 logEvent "INI"
 
