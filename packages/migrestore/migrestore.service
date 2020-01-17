@@ -1,9 +1,0 @@
-[Unit]
-Description=Balena Migration Restore Service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash /usr/bin/migrestore.sh
-
-[Install]
-WantedBy=multi-user.target

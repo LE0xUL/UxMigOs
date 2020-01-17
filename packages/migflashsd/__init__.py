@@ -8,12 +8,12 @@ package = {
     'requires': ['net', 'migscripts'],
     'sysroot_debs': [],
     'root_debs': [],
-    'target': this_dir / '/migrestore.tar.gz',
-    'install': ['{chroot} {stage} /bin/systemctl reenable migrestore.service'],
+    'target': this_dir / 'migflashsd.tar.gz',
+    'install': ['{chroot} {stage} /bin/systemctl reenable migflashsd.service'],
 }
 
 stage = this_dir / 'stage'
-service = this_dir / 'migrestore.service'
+service = this_dir / 'migflashsd.service'
 
 @command(produces=[package['target']], consumes=[service])
 def build():

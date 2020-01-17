@@ -1,11 +1,11 @@
 [Unit]
-Description=Balena Migration Service
+Description=Balena Migration Service to Flash the SD
 After=network.target
 Wants=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash /usr/bin/mig2balena.sh
+ExecStart=/bin/bash /usr/bin/migFlashSD.sh
 
 [Install]
 WantedBy=multi-user.target
