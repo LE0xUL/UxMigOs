@@ -8,8 +8,8 @@
 sleep 1 # wait for sd card to be detected
 
 MIGSSTATEDIR_ROOT='/root/migstate'
-MIGSSTATEDIR_BOOT='/boot/migstate'
-MIGBOOT_MOUNTDIR='/boot'
+MIGSSTATEDIR_BOOT='/mnt/boot/migstate'
+MIGBOOT_MOUNTDIR='/mnt/boot'
 MIGBOOT_DEVICE='/dev/mmcblk0p1'
 MIGROOTFS_DEVICE='/dev/mmcblk0p2'
 MIGROOTFS_MOUNTDIR='/mnt/rootfs'
@@ -36,6 +36,7 @@ if [[ 0 -eq $? ]]; then
     { touch ${MIG_RAMDISK}/MIG_INIT_RAMDISK_ERROR; echo "MIGOS | Init | ERROR | RAMDISK" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
 
     mknod ${MIGBOOT_DEVICE} b 179 1 &>>${MIGSCRIPT_LOG} && \
+    mkdir -vp ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     mount -vo ro ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK; echo "MIGOS | Init | OK | MOUNT BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | MOUNT BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; } 
@@ -49,8 +50,14 @@ if [[ 0 -eq $? ]]; then
         # echo "MIGOS | Init | OK | MIGSTATE DIR UPDATED" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg && \
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_FOUND
 
+        cp -rv ${MIGSSTATEDIR_BOOT} /tmp &>>${MIGSCRIPT_LOG} && \
+        { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_CP2TMP_OK; echo "MIGOS | Init | OK | ${MIGCONFIG_FILE}" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; } || \
+        { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_CP2TMP_ERROR; echo "MIGOS | Init | ERROR | ${MIGCONFIG_FILE}" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
+
         if [[ -f ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ]]; then
+            cat ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} >>/etc/environment && \
             cp -v ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+            cp -rv /
             { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_OK; echo "MIGOS | Init | OK | ${MIGCONFIG_FILE}" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; } || \
             { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_ERROR; echo "MIGOS | Init | ERROR | ${MIGCONFIG_FILE}" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
         else
@@ -103,20 +110,24 @@ if [[ 0 -eq $? ]]; then
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo "MIGOS | Init | OK | UMOUNT BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; } 
 
-    mkdir -vp ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    mknod ${MIGROOTFS_DEVICE} b 179 2 &>>${MIGSCRIPT_LOG} && \
-    mount -vo ro ${MIGROOTFS_DEVICE} ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_OK; echo "MIGOS | Init | OK | MOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_ERROR; echo "MIGOS | Init | ERROR | MOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
+    # mkdir -vp ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
+    # mknod ${MIGROOTFS_DEVICE} b 179 2 &>>${MIGSCRIPT_LOG} && \
+    # mount -vo ro ${MIGROOTFS_DEVICE} ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
+    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_OK; echo "MIGOS | Init | OK | MOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
+    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_ERROR; echo "MIGOS | Init | ERROR | MOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
 
-    if [[ -f ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} ]]; then
-        cp -v ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} /root &>>${MIGCOMMAND_LOG} && \
-        { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_OK; echo "MIGOS | Init | OK | CP BKP RASPBIAN BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
-        { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_ERROR; echo "MIGOS | Init | ERROR | CP BKP RASPBIAN BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
-    else
-        echo "MIGOS | Init | FAIL | ${MIGBKP_RASPBIANBOOT} NOT FOUND" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
-        touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_BKP_RASPBIAN_BOOT_NOT_FOUND_FAIL
-    fi
+    # if [[ -f ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} ]]; then
+        
+    #     #TEMP
+    #     ls -alh ${MIGROOTFS_MOUNTDIR}/ &>>${MIGCOMMAND_LOG}
+
+    #     cp -v ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} /root &>>${MIGCOMMAND_LOG} && \
+    #     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_OK; echo "MIGOS | Init | OK | CP BKP RASPBIAN BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
+    #     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_ERROR; echo "MIGOS | Init | ERROR | CP BKP RASPBIAN BOOT" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
+    # else
+    #     echo "MIGOS | Init | FAIL | ${MIGBKP_RASPBIANBOOT} NOT FOUND" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+    #     touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_BKP_RASPBIAN_BOOT_NOT_FOUND_FAIL
+    # fi
 
     [[ -f ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_OK ]] && \
     umount -v ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \

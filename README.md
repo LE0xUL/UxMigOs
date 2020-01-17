@@ -4,7 +4,7 @@ MIGOS is a raspbian-based ramdisk environment for migrate raspbianOS to BalenaOS
 
 MIGOS is loaded fully into RAM at boot time, after which, the SD card is available for migration. 
 
-# Build MIGOS
+# INSTALL MIGOS
 
 ## Clone / Submodules
 
@@ -14,7 +14,7 @@ This repository uses git submodules. Clone with `--recursive` or after cloning t
 
 Note that shallow cloning usually won't be possible because most of the upstream repositories do not allow shallow cloning arbitrary commits, only the tips of branches and tags.
 
-### System packages
+## Install System packages
 
 MIGOS uses multistrap to collect packages. multistrap requires apt and as such is only supported on Debian based systems. It may be possible to use it on other distributions, but this has not been tested.
 
@@ -63,14 +63,23 @@ On Ubuntu 16.04 you will also need to import these keys into the host apt truste
 
 You may also need to do this on Ubuntu 16.10, 17.04, 17.10 but it is not necessary on 18.04 and later.
 
-### Pydo
+## Pydo
 
 MIGOS uses a build tool called [pydo](https://github.com/ali1234/pydo) which has been developed specifically to handle complex builds that don't produce executables and libraries. You must first install it:
 
     cd migos-balena/pydo && pip3 install .
 
+# BULID AND BOOTING MIGOS
 
-## Compiling
+## Configure MIGOS
+
+In the file 'config.py' you can define:
+
+    * The hostname
+    * Packages to build (relating to packager folder)
+    * The type or types for arch kernel
+
+## Compiling MIGOS
 
 First, initialize the project:
 
@@ -89,13 +98,14 @@ You can view other options running:
 
     pydo -l
 
-## Booting
+## RAW Booting of MIGOS (NOT for migration)
 
 The build produces a boot/ directory containing everything needed to boot.
 
 Run `./go.sh` to generate a fit `tgz` file and extract it onto blank boot fat partition on the SD card, normally `/dev/mmcblk0p1`.
 
-# Migration Scripts
+
+# MIGRATION SCRIPTS
 
 Onto dir `/packages/migscripts` are the scripts that will be executed automatically by the MIGOS system or by hand for the user.
 
@@ -116,10 +126,10 @@ All remote logs are in `json` format and have the following fields:
   * function: name of the function.
   * line: Number of the line that generates the log entry.
   * uptime: Kernel timestamp
-  * state: Result of the event. Can be `INI`, `END`, `OK`, `ERROR`, `FAIL`, `SUCCESS`, `EXIT` or `CMDLOG`
+  * state: Result of the event. Can be `INI`, `END`, `INFO` `OK`, `ERROR`, `FAIL`, `SUCCESS`, `EXIT` or `CMDLOG`
   * msg: Aditional info.
 
-Additionally a full detailed log is stored using the service of [transfer.sh](https://transfer.sh/) the URL of this log can be found in the `BalenaMigration/eventLog` under the `log2transfer` function name.
+Additionally a full detailed log is stored using the service of [filepush.sh](https://filepush.co/) the URL of this log can be found in the `BalenaMigration/eventLog` under the `logFilePush` function name.
 
 ## Order of manual execution scripts
 
@@ -140,7 +150,7 @@ __________\/__________
           ||
 __________\/__________
 |                    |  * Delete Boot files of Raspbian
-|     migInit.sh     |  * Download and install the last version of MIGOS
+|    migLaunch.sh    |  * Download and install the last version of MIGOS
 |____________________|  * Reboot the system to initiate the migration process (MIGOS)
 ```
 
@@ -161,7 +171,7 @@ Those scrips are executed automatically by the systemd services of MIGOS
                 ||              ||
 ________________\/___        ___\/_________________    ___________________________
 |                   |        |                    |    |                         |
-|   mig2balena.sh   |   <==  |   migWatchDog.sh   | => |  migRestoreRaspBoot.sh  |
+|   migFlashSD.sh   |   <==  |   migWatchDog.sh   | => |  migRestoreRaspBoot.sh  |
 |___________________|        |____________________|    |_________________________|
 
 * FSM to download             * Test Network            * Validate and restore
@@ -171,23 +181,31 @@ ________________\/___        ___\/_________________    _________________________
 
 ```
 
-# Executing Scrips
+
+
+# MIGRATION PROCESS
+
+In theory all migration process is completly automatized, the only manual process is to execute the initiation scripts. 
+The `migPusher.sh` script was builds to send the command to execute remotely the manual scripts.
+Is necessary previusly know the `ID` of the device target to migrate.
+
+NOTE: The order of executions is very importan (see above).
+
+There are two options to run this, the recommend option is using the CLI tool.
 
 ## How to execute remotely via API HTTP
-
-The `migPusher.sh` script sends the command to execute remotely some MIGOS scripts.
 
 The usage structure is: `./migPusher.sh api <Device ID> <Script name>` where:
 
   * The `<Device ID>` will be in HEX format in lowercase
-  * The `<Script name>` can be: `migDiagnostic`, `migBackup`, or `migInit`
+  * The `<Script name>` can be: `migDiagnostic`, `migBackup`, or migLaunch`
 
 Example:
 
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
 ./migPusher.sh api b8_27_eb_a0_a8_71 migBackup
-./migPusher.sh api b8_27_eb_a0_a8_71 migInit
+./migPusher.sh api b8_27_eb_a0_a8_71 migLaunch
 ```
 
 > The output of this script only say if the "pusher command" can be sent, to see the result of each script executed remotely is necessary see the log in the `insightOps` platform (see above)
@@ -211,7 +229,7 @@ Example:
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
 ./migPusher.sh api b8_27_eb_a0_a8_71 migBackup
-./migPusher.sh api b8_27_eb_a0_a8_71 migInit
-```
+./migPusher.sh api b8_27_eb_a0_a8_71 migLaunch
+``
 
-> The output of this script only say if the "pusher command" can be sent or fail, to see the result of each script executed remotely is necessary see the log in the `insightOps` platform (see above)
+> The output of this script only say if the "pusher command" can be sent or fail, to see the result of each script executed remotely is necessary see the log on the `insightOps` platform (see above)

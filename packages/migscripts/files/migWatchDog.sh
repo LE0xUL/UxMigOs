@@ -46,8 +46,6 @@ function logEvent {
 }
 
 function updateBootMigState {
-    MIGSCRIPT_STAGE="mig2Balena"
-    MIGSCRIPT_EVENT="Update BootMigState"
     MIGSCRIPT_STATE="INI"
 
     logEvent
@@ -116,19 +114,21 @@ function restoreRaspianBoot {
 }
 
 # # curl -s http://server/path/script.sh | bash -s arg1 arg2
-until [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SUCCESS ]]; do
-	if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_FAIL ]] && [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR ]]; then
-		if [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SFDISK_OK ]]; then 
-			restoreRaspianBoot
-		else
-			restoreMigosBoot
-		fi
-	fi
-    sleep 10
-done
 
 
-# # server_path='http://10.0.0.210/balenaos'
+# until [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SUCCESS ]]; do
+# 	if [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_FAIL ]] && [[ -f ${MIGSSTATE_DIR}/MIG_BALENA_NETWORK_ERROR ]]; then
+# 		if [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SFDISK_OK ]]; then 
+# 			restoreRaspianBoot
+# 		else
+# 			restoreMigosBoot
+# 		fi
+# 	fi
+#     sleep 10
+# done
+
+
+# # server_path='http://10.0.0.229/balenaos'
 # server_path='https://storage.googleapis.com/balenamigration'
 # file_test_conection='balenamigration'
 # file_resin_sfdisk='resin-partitions-60.sfdisk.gz'
@@ -154,7 +154,7 @@ done
 # logmsg "BalenaMigration: Ramdisk [OK]"
 # touch /tmp/balenaMigration_Ramdisk
 
-# # until $(curl --output /dev/null --silent --head --fail 10.0.0.210/balenaos/balenamigration); do
+# # until $(curl --output /dev/null --silent --head --fail 10.0.0.229/balenaos/balenamigration); do
 # until $(wget -q --tries=10 --timeout=10 --spider "$server_path/$file_test_conection"); do
 # 	if [ ${attempt_counter} -eq ${max_attempts} ];then
 # 		logmsg "BalenaMigration: Network [ERROR]"

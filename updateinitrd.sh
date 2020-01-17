@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 MIGOS_VERSION="$(git describe)"
 MIGOS_BALENA_FILENAME="migboot-migos-balena_${MIGOS_VERSION}.tgz"
@@ -16,5 +17,5 @@ cpio --create -H newc | xz -C crc32 -9 > ../boot/initrd" && \
 cd ../boot && \
 tar -czf ../${MIGOS_BALENA_FILENAME} --owner=root --group=root ./* && \
 cd .. && \
-scp ${MIGOS_BALENA_FILENAME} trecetp@10.0.0.211:/srv/http/balenaos/ && \
-rsync -av packages/migscripts/files/* trecetp@10.0.0.211:/srv/http/balenaos/scripts
+scp ${MIGOS_BALENA_FILENAME} trecetp@10.0.0.229:/srv/http/balenaos/migboot-migos-balena.tgz && \
+rsync -av packages/migscripts/files/* trecetp@10.0.0.229:/srv/http/balenaos/migscripts

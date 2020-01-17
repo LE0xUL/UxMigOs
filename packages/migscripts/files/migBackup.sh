@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.211/balenaos/scripts/migBackup.sh' | bash
-# curl -s 'http://10.0.0.211/balenaos/scripts/migBackup.sh' | bash
+# wget -O - 'http://10.0.0.229/balenaos/scripts/migBackup.sh' | bash
+# curl -s 'http://10.0.0.229/balenaos/scripts/migBackup.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' | bash
 # curl 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' --output migBackup.sh
 
@@ -24,6 +24,8 @@ MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGBKP_RASPBIANBOOT="/root/migboot-backup-raspbian.tgz"
 
+# TODO: MIGOS_VERSION="$(git describe)"
+# TODO: MIGOS_BALENA_FILENAME="migboot-migos-balena_${MIGOS_VERSION}.tgz"
 MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
 MIGOS_BALENA_FILEPATH="/root/${MIGOS_BALENA_FILENAME}"
 
@@ -31,7 +33,7 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='http://10.0.0.211/balenaos'
+MIGBUCKET_URL='http://10.0.0.229/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='testbucketconnection.file'
 
@@ -159,7 +161,7 @@ function installMIGOS {
 
     wget -O ${MIGOS_BALENA_FILEPATH} "${MIGBUCKET_URL}/${MIGOS_BALENA_FILENAME}" &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
     rm -rf /boot/* &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
-    tar -xzf ${MIGOS_BALENA_FILEPATH} -C / &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    tar -xzf ${MIGOS_BALENA_FILEPATH} -C /boot &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
 
     MIGSCRIPT_STATE="OK"
     logEvent "installed MIGOS in boot partition"
@@ -175,9 +177,9 @@ function migState2Boot {
     MIGSCRIPT_STATE="INI"
     logEvent
 
-    mkdir -p ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
-    cp -rv ${MIGSSTATE_DIR}/ ${MIGSSTATEDIR_BOOT}/ &>${MIGCOMMAND_LOG} || 
-    { logCommand; bkpExitError; }
+    # mkdir -p ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    cp -rv ${MIGSSTATE_DIR} /boot &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    # cp -rv ${MIGSSTATE_DIR}/ ${MIGSSTATEDIR_BOOT}/ &>${MIGCOMMAND_LOG} || 
 
     MIGSCRIPT_STATE="OK"
     logEvent "Copyed migState in boot partition"

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | bash
-# wget -O - 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | sudo bash
-# curl -s 'http://10.0.0.211/balenaos/scripts/migDiagnostic.sh' | bash
+# wget -O - 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | bash
+# wget -O - 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | sudo bash
+# curl -s 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh' | bash
 
 MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
@@ -22,24 +22,21 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='http://10.0.0.211/balenaos'
+MIGBUCKET_URL='http://10.0.0.229/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='testbucketconnection.file'
 
 function diagExitError {
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
 
+    echo "[ ## DIAGNOSTIC FAIL ## ]" |& tee -a ${MIGSCRIPT_LOG}
+    date |& tee -a ${MIGSCRIPT_LOG}
+    echo "" |& tee -a ${MIGSCRIPT_LOG}
     [[ -f ${MIGCOMMAND_LOG} ]] && cat ${MIGCOMMAND_LOG}
-    
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "###################" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "# DIAGNOSTIC FAIL #" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "###################" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
-    date | tee -a ${MIGSCRIPT_LOG}
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-    echo "${BASH_SOURCE[1]##*/}:${FUNCNAME[1]}[${BASH_LINENO[0]}]" | tee -a ${MIGSCRIPT_LOG}
-    exit
+    echo "${BASH_SOURCE[1]##*/}:${FUNCNAME[1]}[${BASH_LINENO[0]}]" |& tee -a ${MIGSCRIPT_LOG}
+
+    logFilePush
+    exit $LINENO
 }
 
 function logCommand {
@@ -55,7 +52,8 @@ function logCommand {
 
     curl -X POST \
     -d "@${MIGCOMMAND_LOG}" \
-    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}"
+    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" || \
+    echo "ERROR: Can't Send logCommand"
 }
 
 function logEvent {
@@ -70,7 +68,16 @@ function logEvent {
     curl -i -H "Accept: application/json" \
     -X POST \
     --data @- \
-    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || logCommand
+    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || \
+    {
+        echo "ERROR: Can't Send logEvent"
+        logCommand
+    }
+}
+
+function logFilePush {
+    MIGSCRIPT_STATE="INFO"
+    logEvent "$(curl --upload-file ${MIGSCRIPT_LOG} https://filepush.co/upload/)"
 }
 
 function validateOS {
@@ -365,7 +372,7 @@ function testIsRoot {
     # Run as root, of course.
     if [[ "$UID" -ne "$ROOT_UID" ]]
     then
-        echo -e "[FAIL]\tMust be root to run this script."
+        echo "[FAIL] Must be root to run this script."
         exit $LINENO
     fi
 }
@@ -374,7 +381,7 @@ function testBucketConnection {
     wget -q --tries=10 --timeout=10 --spider "$MIGBUCKET_URL/$MIGBUCKET_FILETEST"
 
     if [[ $? -ne 0 ]]; then
-        echo "[FAIL]\tNo connection to the bucket server detected"
+        echo "[FAIL] No connection to the bucket server detected"
         echo "Is necessary a connection to the bucket server to run this script."
         exit $LINENO
     fi
@@ -386,26 +393,30 @@ function iniDiagnostic {
     testIsRoot
     testBucketConnection
 
-    mkdir -p ${MIGSSTATE_DIR} && [[ -d ${MIGSSTATE_DIR} ]] && cd ${MIGSSTATE_DIR} || \
+    if [[ -d ${MIGSSTATE_DIR} ]]; then
+        rm -rf ${MIGSSTATE_DIR} && \
+        echo "${MIGSSTATE_DIR} deleted" || \
+        {
+            echo "[FAIL] Can't delete ${MIGSSTATE_DIR}"
+            exit $LINENO
+        }
+    fi
+
+    mkdir -vp ${MIGSSTATE_DIR} && [[ -d ${MIGSSTATE_DIR} ]] && cd ${MIGSSTATE_DIR} || \
     {
-        echo "[FAIL]\t Can't create ${MIGSSTATE_DIR}"
+        echo "[FAIL] Can't create ${MIGSSTATE_DIR}"
         exit $LINENO
     }
 
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "******************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "* DIAGNOSTIC INI *" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "******************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
-    date | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
+    echo "[ ## DIAGNOSTIC INI ## ]" |& tee -a ${MIGSCRIPT_LOG}
+    date |& tee -a ${MIGSCRIPT_LOG}
 
     logEvent
 
-    [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
-    [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
+    # [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
+    # [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
 
-    >${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} && echo "MIGCONFIG_DID='${MIGDID}'" >${MIGCONFIG_FILE} || \
+    echo "MIGCONFIG_DID='${MIGDID}'" >${MIGCONFIG_FILE} || \
     { logCommand; diagExitError; }
 
     validateOS
@@ -415,18 +426,16 @@ function iniDiagnostic {
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
 
-    MIGSCRIPT_STATE="END"
+    MIGSCRIPT_STATE="SUCCESS"
     logEvent "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
 
-    echo -e "\n" | tee -a ${MIGSCRIPT_LOG}
-    cat ${MIGCONFIG_FILE} | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
-    date | tee -a ${MIGSCRIPT_LOG}
-    echo -e "" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "**********************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "* DIAGNOSTIC SUCCESS *" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "**********************" | tee -a ${MIGSCRIPT_LOG}
-    echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
+    echo "" |& tee -a ${MIGSCRIPT_LOG}
+    cat ${MIGCONFIG_FILE} |& tee -a ${MIGSCRIPT_LOG}
+    echo "" |& tee -a ${MIGSCRIPT_LOG}
+    date |& tee -a ${MIGSCRIPT_LOG}
+    echo "[ ## DIAGNOSTIC SUCCESS ## ]" |& tee -a ${MIGSCRIPT_LOG}
+
+    logFilePush
 }
 
 iniDiagnostic

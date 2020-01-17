@@ -13,6 +13,10 @@ APP_SECRET="48919b4f619b6dd8ca4b"
 APP_CLUSTER="us2"
 API_KEY='-aP8iW3jzXcNxoHIGFlrrVIsTOkQiK5Y3gopCYJhLCQ'
 
+MIGBUCKET_URL='http://10.0.0.229/balenaos'
+# MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
+MIGBUCKET_FILETEST='testbucketconnection.file'
+
 # exec 3>&1 4>&2
 # trap 'exec 2>&4 1>&3' 0 1 2 3
 # exec 1>pusher2.log 2>&1
@@ -30,7 +34,7 @@ function PrintHelp {
     echo ""
     echo "The <tool> can be: api or cli"
     echo "The <Device ID> will be in HEX format"
-    echo "The <scriptName> can be: migDiagnostic, migBackup, or migInit"
+    echo "The <scriptName> can be: migDiagnostic, migBackup, or migLaunch"
     echo "The only <event> supported is: subscribe"
     echo ""
     echo "examples:"
@@ -84,7 +88,7 @@ else
     exit $LINENO
 fi
 
-# if [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migInit" ]]; then
+# if [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migLaunch" ]]; then
 #     echo "Valid Script name" &>>${MIGSCRIPT_LOG}
 #     MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/$2.sh | bash"
 # elif [[ $1 = "cli" ]] && [[ $3 = "subscribe" ]]; then
@@ -98,9 +102,9 @@ fi
 
 case $1 in
     'api')
-        if [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migInit" ]]; then
+        if [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migLaunch" ]]; then
             echo "Valid Script name" &>>${MIGSCRIPT_LOG}
-            MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/$3.sh | bash"
+            MIGCMD="wget -O - ${MIGBUCKET_URL}/migscripts/$3.sh | bash"
             
             timestamp=$(date +%s)
             echo "timestamp: $timestamp" &>>${MIGSCRIPT_LOG}
@@ -157,8 +161,8 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
         if [[ $3 = "subscribe" ]]; then
             pusher channels apps subscribe --app-id ${APP_ID} --channel ${MIGDID} |& tee -a ${MIGSCRIPT_LOG}
             exit 0
-        elif [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migInit" ]]; then
-            MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/$3.sh | bash"
+        elif [[ $3 = "migDiagnostic" ]] || [[ $3 = "migBackup" ]] || [[ $3 = "migLaunch" ]]; then
+            MIGCMD="wget -O - ${MIGBUCKET_URL}/migscripts/$3.sh | bash"
             pusher channels apps trigger --app-id ${APP_ID} --channel ${MIGDID} --event request --message '{"command":"'"${MIGCMD}"'"}' &>> ${MIGSCRIPT_LOG}
             
             if [[ 0 -eq $? ]]; then
@@ -185,8 +189,8 @@ exit 0
 #         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh | bash"
 #         ;;
 
-#     'migInit')
-#         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migInit.sh | bash"
+#     'migLaunch')
+#         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migLaunch.sh | bash"
 #         ;;
 # esac
 
