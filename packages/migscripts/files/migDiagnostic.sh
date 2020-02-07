@@ -28,9 +28,6 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGNET_EN_FILE="${MIGSSTATE_DIR}/en.network"
-MIGNET_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
-
 MIGBUCKET_URL='http://10.0.0.21/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
@@ -415,108 +412,6 @@ function validationNetwork {
     return 0
 }
 
-function backupFile {
-    MIGBKP_FILENAME=$(echo "$1" | awk '{n=split($1,A,"/"); print A[n]}')
-    
-    if [[ -f "$1" ]]; then
-        cp -v "$1" "${MIGSSTATE_DIR}/${MIGBKP_FILENAME}.bkp" &>${MIGCOMMAND_LOG} && \
-        cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} && \
-        logEvent "OK" "Backup of ${MIGBKP_FILENAME}" || \
-        exitError "ERROR to backup ${MIGBKP_FILENAME}" logCommand
-    else
-        exitError "Missing file $1"
-    fi
-}
-
-function backupSystemFiles {
-    logEvent "INI"
-
-    backupFile '/etc/network/interfaces'
-    backupFile '/etc/hostname'
-    backupFile '/usr/local/share/admobilize-adbeacon-software/config/json/device.json'
-
-    [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
-    backupFile '/etc/wpa_supplicant/wpa_supplicant.conf'
-    
-    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]] || [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
-        backupFile '/etc/dhcpcd.conf'
-    fi
-
-    logEvent "END"
-}
-
-function makeNetFiles {
-    logEvent "INI"
-
-    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]];then
-        >${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Fail to create"
-
-        echo "[match]" | tee ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[match]' to ${MIGNET_EN_FILE}" logCommand
-        echo "Name=en*" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append 'Name=en*' to ${MIGNET_EN_FILE}" logCommand
-        echo "[Network]" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[Network]' to ${MIGNET_EN_FILE}" logCommand
-        
-        if [[ -n ${MIGCONFIG_ETH_IPMASK} ]];then
-            echo "Address=${MIGCONFIG_ETH_IPMASK}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'Address=${MIGCONFIG_ETH_IPMASK}' to ${MIGNET_EN_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_ETH_IPMASK"
-        fi
-
-        if [[ -n ${MIGCONFIG_ETH_GWIP} ]];then
-            echo "Gateway=${MIGCONFIG_ETH_GWIP}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'Gateway=${MIGCONFIG_ETH_GWIP}' to ${MIGNET_EN_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_ETH_GWIP"
-        fi
-
-        if [[ -n ${MIGCONFIG_ETH_DNSIP} ]];then
-            echo "DNS=${MIGCONFIG_ETH_DNSIP}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'DNS=${MIGCONFIG_ETH_DNSIP}' to ${MIGNET_EN_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_ETH_DNSIP"
-        fi
-
-        logEvent "OK" "Created ethernet static IP config file: ${MIGNET_EN_FILE}"
-
-        cat ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} logCommand "cat ${MIGNET_EN_FILE}"
-    fi
-
-    if [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
-        >${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't create ${MIGNET_WLAN0_FILE}" logCommand
-
-        echo "[match]" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[match]' to ${MIGNET_WLAN0_FILE}" logCommand
-        echo "Name=en*" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append 'Name=en*' to ${MIGNET_WLAN0_FILE}" logCommand
-        echo "[Network]" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[Network]' to ${MIGNET_WLAN0_FILE}" logCommand
-        
-        if [[ -n ${MIGCONFIG_WLAN_IPMASK} ]];then
-            echo "Address=${MIGCONFIG_WLAN_IPMASK}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'Address=${MIGCONFIG_WLAN_IPMASK}' to ${MIGNET_WLAN0_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_WLAN_IPMASK"
-        fi
-
-        if [[ -n ${MIGCONFIG_WLAN_GWIP} ]];then
-            echo "Gateway=${MIGCONFIG_WLAN_GWIP}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'Gateway=${MIGCONFIG_WLAN_GWIP}' to ${MIGNET_WLAN0_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_WLAN_GWIP"
-        fi
-
-        if [[ -n ${MIGCONFIG_WLAN_DNSIP} ]];then
-            echo "DNS=${MIGCONFIG_WLAN_DNSIP}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
-            exitError "Can't append 'DNS=${MIGCONFIG_WLAN_DNSIP}' to ${MIGNET_WLAN0_FILE}" logCommand
-        else
-            exitError "Missing MIGCONFIG_WLAN_DNSIP"
-        fi
-
-        logEvent "OK" "Created wireless static IP config file: ${MIGNET_WLAN0_FILE}"
-
-        cat ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} logCommand "cat ${MIGNET_WLAN0_FILE}"
-    fi
-
-    logEvent "END"
-}
-
 function checkFilesAtBucket {
     logEvent "INI"
 
@@ -610,7 +505,7 @@ function testBucketConnection {
 
 function testDiagnosticRunning {
     sleep 0.$[ ( $RANDOM % 10 ) ]s
-    
+
     if [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING ]]
     then
         echo "[FAIL] Another diagnostic script is running"
@@ -651,12 +546,6 @@ function iniDiagnostic {
     source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
     exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
 
-    backupSystemFiles
-    makeNetFiles
-    # TODO: make resin net files (system-connections)
-    # https://www.balena.io/docs/reference/OS/network/2.x/
-    # https://developer.gnome.org/NetworkManager/stable/nm-settings-keyfile.html
-    # https://developer.gnome.org/NetworkManager/stable/nm-settings.html
     checkFilesAtBucket
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS

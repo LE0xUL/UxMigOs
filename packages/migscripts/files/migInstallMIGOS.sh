@@ -32,6 +32,11 @@ MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
 MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
 MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
 
+MIGNET_SYSTEMD_EN_FILE="${MIGSSTATE_DIR}/en.network"
+MIGNET_SYSTEMD_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
+MIGNET_RESIN_WLAN_FILE="${MIGSSTATE_DIR}/resin-wlan"
+MIGNET_RESIN_ETH_FILE="${MIGSSTATE_DIR}/resin-ethernet"
+
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
@@ -96,7 +101,7 @@ function logEvent {
 # USE: execCmmd "COMMANDS" [logSuccess || logCommand]
 function execCmmd {
     echo "" &>>${MIGSCRIPT_LOG}
-    echo ">>> $1" &>>${MIGSCRIPT_LOG}
+    echo "[${BASH_LINENO[0]}]>>> $1" &>>${MIGSCRIPT_LOG}
 	eval "$1" &>${MIGCOMMAND_LOG} 
     
     if [[ 0 -eq $? ]]; then 
@@ -193,6 +198,204 @@ function migos2Boot {
     logEvent "OK" "Installed MIGOS in boot partition"
     
     execCmmd "ls -alh ${MIGBOOT_DIR}" logCommand
+
+    logEvent "END"
+}
+
+function makeNetFilesSystemd {
+    logEvent "INI"
+
+    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]];then
+        execCmmd "echo [match] >${MIGNET_SYSTEMD_EN_FILE}" && \
+        execCmmd "echo Name=en* >>${MIGNET_SYSTEMD_EN_FILE}" && \
+        execCmmd "echo [Network] >>${MIGNET_SYSTEMD_EN_FILE}" || \
+        exitError "Can't create ${MIGNET_SYSTEMD_EN_FILE}"
+        
+        if [[ -n ${MIGCONFIG_ETH_IPMASK} ]];then
+            execCmmd "echo 'Address=${MIGCONFIG_ETH_IPMASK}' >>${MIGNET_SYSTEMD_EN_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_EN_FILE}"
+        else
+            exitError "Missing MIGCONFIG_ETH_IPMASK"
+        fi
+
+        if [[ -n ${MIGCONFIG_ETH_GWIP} ]];then
+            execCmmd "echo 'Gateway=${MIGCONFIG_ETH_GWIP}' >>${MIGNET_SYSTEMD_EN_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_EN_FILE}"
+        else
+            exitError "Missing MIGCONFIG_ETH_GWIP"
+        fi
+
+        if [[ -n ${MIGCONFIG_ETH_DNSIP} ]];then
+            execCmmd "echo 'DNS=${MIGCONFIG_ETH_DNSIP}' >>${MIGNET_SYSTEMD_EN_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_EN_FILE}"
+        else
+            exitError "Missing MIGCONFIG_ETH_DNSIP"
+        fi
+
+        logEvent "OK" "Created ethernet static IP config file: ${MIGNET_SYSTEMD_EN_FILE}"
+
+        execCmmd "cat ${MIGNET_SYSTEMD_EN_FILE}" logCommand
+    fi
+
+    if [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
+        execCmmd "echo '[match]' >${MIGNET_SYSTEMD_WLAN0_FILE}" && \
+        execCmmd "echo 'Name=en*' >>${MIGNET_SYSTEMD_WLAN0_FILE}" && \
+        execCmmd "echo '[Network]' >>${MIGNET_SYSTEMD_WLAN0_FILE}" || \
+        exitError "Can't append to ${MIGNET_SYSTEMD_WLAN0_FILE}"
+        
+        if [[ -n ${MIGCONFIG_WLAN_IPMASK} ]];then
+            execCmmd "echo 'Address=${MIGCONFIG_WLAN_IPMASK}' >>${MIGNET_SYSTEMD_WLAN0_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_WLAN0_FILE}"
+        else
+            exitError "Missing MIGCONFIG_WLAN_IPMASK"
+        fi
+
+        if [[ -n ${MIGCONFIG_WLAN_GWIP} ]];then
+            execCmmd "echo 'Gateway=${MIGCONFIG_WLAN_GWIP}' >>${MIGNET_SYSTEMD_WLAN0_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_WLAN0_FILE}"
+        else
+            exitError "Missing MIGCONFIG_WLAN_GWIP"
+        fi
+
+        if [[ -n ${MIGCONFIG_WLAN_DNSIP} ]];then
+            execCmmd "echo 'DNS=${MIGCONFIG_WLAN_DNSIP}' >>${MIGNET_SYSTEMD_WLAN0_FILE}" || \
+            exitError "Can't append to ${MIGNET_SYSTEMD_WLAN0_FILE}"
+        else
+            exitError "Missing MIGCONFIG_WLAN_DNSIP"
+        fi
+
+        logEvent "OK" "Created wireless static IP config file: ${MIGNET_SYSTEMD_WLAN0_FILE}"
+
+        execCmmd "cat ${MIGNET_SYSTEMD_WLAN0_FILE}" logCommand
+    fi
+
+    logEvent "END"
+}
+
+# https://www.balena.io/docs/reference/OS/network/2.x/
+# https://developer.gnome.org/NetworkManager/stable/nm-settings-keyfile.html
+# https://developer.gnome.org/NetworkManager/stable/nm-settings.html
+function makeNetFilesResin {
+    logEvent "INI"
+
+    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]];then
+        [[ -n ${MIGCONFIG_ETH_IPMASK} ]] && \
+        [[ -n ${MIGCONFIG_ETH_GWIP} ]] && \
+        [[ -n ${MIGCONFIG_ETH_DNSIP} ]] && \
+        execCmmd "echo '[connection]' >${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'id=resin-ethernet' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'type=ethernet' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'interface-name=eth0' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'permissions=' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'secondaries=' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '[ethernet]' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'mac-address-blacklist=' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '[ipv4]' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'address1=${MIGCONFIG_ETH_IPMASK},${MIGCONFIG_ETH_GWIP}' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'dns=${MIGCONFIG_ETH_DNSIP};' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'dns-search=' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'method=manual' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo '[ipv6]' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'addr-gen-mode=stable-privacy' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'dns-search=' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_ETH_FILE}" && \
+        execCmmd "cat ${MIGNET_RESIN_ETH_FILE}" logCommand && \
+        logEvent "OK" "Created resin ethernet file: ${MIGNET_RESIN_ETH_FILE}" || \
+        exitError "FAIL at create resin ethernet file: ${MIGNET_RESIN_ETH_FILE}"
+    fi
+
+    if [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && [[ 'YES' == "${MIGCONFIG_WLAN_DHCP}" ]]; then
+        [[ -n ${MIGCONFIG_WLAN_SSID} ]] && \
+        [[ -n ${MIGCONFIG_WLAN_PSK} ]] && \
+        execCmmd "echo '[connection]' >${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'id=resin-wlan' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'type=wifi' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[wifi]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'hidden=true' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'mode=infrastructure' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'ssid=${MIGCONFIG_WLAN_SSID}' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[ipv4]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[ipv6]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'addr-gen-mode=stable-privacy' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[wifi-security]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'auth-alg=open' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'key-mgmt=wpa-psk' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'psk=${MIGCONFIG_WLAN_PSK}' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "cat ${MIGNET_RESIN_WLAN_FILE}" logCommand && \
+        logEvent "OK" "Created resin wlan file: ${MIGNET_RESIN_WLAN_FILE}" || \
+        exitError "FAIL at create resin wlan file: ${MIGNET_RESIN_WLAN_FILE}"
+    elif [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
+        [[ -n ${MIGCONFIG_WLAN_SSID} ]] && \
+        [[ -n ${MIGCONFIG_WLAN_PSK} ]] && \
+        [[ -n ${MIGCONFIG_WLAN_IPMASK} ]] && \
+        [[ -n ${MIGCONFIG_WLAN_GWIP} ]] && \
+        [[ -n ${MIGCONFIG_WLAN_DNSIP} ]] && \
+        execCmmd "echo '[connection]' >${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'id=resin-wlan' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'type=wifi' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[wifi]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'hidden=true' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'mode=infrastructure' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'ssid=${MIGCONFIG_WLAN_SSID}' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[ipv4]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'address1=${MIGCONFIG_WLAN_IPMASK},${MIGCONFIG_WLAN_GWIP}' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'dns=${MIGCONFIG_WLAN_DNSIP};' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'dns-search=' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'method=manual' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[ipv6]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'addr-gen-mode=stable-privacy' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo '[wifi-security]' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'auth-alg=open' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'key-mgmt=wpa-psk' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "echo 'psk=${MIGCONFIG_WLAN_PSK}' >>${MIGNET_RESIN_WLAN_FILE}" && \
+        execCmmd "cat ${MIGNET_RESIN_WLAN_FILE}" logCommand && \
+        logEvent "OK" "Created resin wlan file: ${MIGNET_RESIN_WLAN_FILE}" || \
+        exitError "FAIL at create resin wlan file: ${MIGNET_RESIN_WLAN_FILE}"
+    fi
+
+    logEvent "END"
+}
+
+function backupFile {
+    MIGBKP_FILENAME=$(echo "$1" | awk '{n=split($1,A,"/"); print A[n]}')
+    
+    if [[ -f "$1" ]]; then
+        cp -v "$1" "${MIGSSTATE_DIR}/${MIGBKP_FILENAME}.bkp" &>${MIGCOMMAND_LOG} && \
+        cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} && \
+        logEvent "OK" "Backup of ${MIGBKP_FILENAME}" || \
+        exitError "ERROR to backup ${MIGBKP_FILENAME}" logCommand
+    else
+        exitError "Missing file $1"
+    fi
+}
+
+function backupSystemFiles {
+    logEvent "INI"
+
+    backupFile '/etc/network/interfaces'
+    backupFile '/etc/hostname'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/config/json/device.json'
+
+    [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
+    backupFile '/etc/wpa_supplicant/wpa_supplicant.conf'
+    
+    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]] || [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
+        backupFile '/etc/dhcpcd.conf'
+    fi
 
     logEvent "END"
 }
@@ -392,6 +595,10 @@ function iniMigosInstall {
 
     source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
     exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
+
+    backupSystemFiles
+    makeNetFilesSystemd
+    makeNetFilesResin
 
     downFilesFromBucket
     migos2Boot
