@@ -8,12 +8,12 @@ package = {
     'requires': ['net'],
     'sysroot_debs': [],
     'root_debs': [],
-    'target': this_dir / 'migwatchdog.tar.gz',
-    'install': ['{chroot} {stage} /bin/systemctl reenable migwatchdog.service'],
+    'target': this_dir / 'migsupervisor.tar.gz',
+    'install': ['{chroot} {stage} /bin/systemctl reenable migsupervisor.service'],
 }
 
 stage = this_dir / 'stage'
-service = this_dir / 'migwatchdog.service'
+service = this_dir / 'migsupervisor.service'
 
 @command(produces=[package['target']], consumes=[service])
 def build():

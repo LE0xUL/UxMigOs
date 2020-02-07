@@ -24,15 +24,16 @@ def build():
         
         f'chmod +x {scriptsdirfiles}/nettool.sh',
 	    f'chmod +x {scriptsdirfiles}/migFlashSD.sh',
-	    f'chmod +x {scriptsdirfiles}/migWatchDog.sh',
-	    f'chmod +x {scriptsdirfiles}/migRestoreRaspBoot.sh',
+	    f'chmod +x {scriptsdirfiles}/migFunctions.sh',
+	    f'chmod +x {scriptsdirfiles}/migSupervisor.sh',
 
         f'cp {scriptsdirfiles}/nettool.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/migFlashSD.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/migFunctions.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/migSupervisor.sh {stage}/usr/bin/',
+
         # f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
         # f'cp {scriptsdirfiles}/migDiagnostic.sh {stage}/usr/bin/',
-        f'cp {scriptsdirfiles}/migFlashSD.sh {stage}/usr/bin/',
-        f'cp {scriptsdirfiles}/migWatchDog.sh {stage}/usr/bin/',
-        f'cp {scriptsdirfiles}/migRestoreRaspBoot.sh {stage}/usr/bin/',
 
         f'tar -C {stage} -czf {package["target"]} .',
     ])

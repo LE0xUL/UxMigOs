@@ -9,7 +9,7 @@ package = {
     'sysroot_debs': [],
     'root_debs': [],
     'target': this_dir / 'migflashsd.tar.gz',
-    'install': ['{chroot} {stage} /bin/systemctl reenable migflashsd.service'],
+    'install': ['{chroot} {stage} /bin/systemctl disable migflashsd.service'],
 }
 
 stage = this_dir / 'stage'

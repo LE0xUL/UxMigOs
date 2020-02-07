@@ -1,182 +1,236 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | bash
-# wget -O - 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | sudo bash
-# curl -s 'http://10.0.0.229/balenaos/migscripts/migDiagnostic.sh' | bash
+# wget -O - 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | bash
+# wget -O - 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | sudo bash
+# curl -s 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh' | bash
 
 MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 ## Device ID
 MIGDID="$(hostname)"
-MIGSSTATEDIR_BOOT="/boot/migstate"
-MIGSSTATEDIR_ROOT="/root/migstate"
-MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
+[[ 0 -ne $? ]] && { echo "[FAIL] Can't set MIGDID"; exit $LINENO; }
+
+MIGLOG_SCRIPTNAME="migDiagnostic.sh"
+# MIGLOG_SCRIPTNAME=$(basename "$0")
+# MIGLOG_SCRIPTNAME=${BASH_SOURCE[1]##*/}
+
+# MIGSSTATEDIR_BOOT="/boot/migstate"
+MIGSSTATE_DIR="/root/migstate"
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
-MIGSCRIPT_LOG="${MIGSSTATE_DIR}/diagnostic.log"
-MIGSCRIPT_STATE='STATE'
-MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
+MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migDiagnostic.log"
+# MIGSCRIPT_STATE='STATE'
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
+MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
+MIGCONFIG_BOOTSIZE=0
 
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='http://10.0.0.229/balenaos'
+MIGNET_EN_FILE="${MIGSSTATE_DIR}/en.network"
+MIGNET_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
+
+MIGBUCKET_URL='http://10.0.0.21/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
-MIGBUCKET_FILETEST='testbucketconnection.file'
+MIGBUCKET_FILETEST='test.file'
 
-function diagExitError {
-    touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
+MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
+MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
 
-    echo "[ ## DIAGNOSTIC FAIL ## ]" |& tee -a ${MIGSCRIPT_LOG}
-    date |& tee -a ${MIGSCRIPT_LOG}
-    echo "" |& tee -a ${MIGSCRIPT_LOG}
-    [[ -f ${MIGCOMMAND_LOG} ]] && cat ${MIGCOMMAND_LOG}
-    echo "${BASH_SOURCE[1]##*/}:${FUNCNAME[1]}[${BASH_LINENO[0]}]" |& tee -a ${MIGSCRIPT_LOG}
-
-    logFilePush
-    exit $LINENO
-}
-
+# USE: logCommand 
+# USE: logCommand MESSAGE 
+# USE: logCommand MESSAGE FUNCNAME
+# USE: logCommand MESSAGE FUNCNAME BASH_LINENO
+# (implicitly the file set by ${MIGCOMMAND_LOG} is sent)
 function logCommand {
-    echo '{"device":"'"${MIGDID}"'", '\
-    '"script":"migDiagnostic.sh", '\
-    '"function":"'"${FUNCNAME[1]}"'", '\
-    '"line":"'"${BASH_LINENO[0]}"'", '\
-    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
-    '"state":"'"CMDLOG"'", '\
-    '"msg":"' | \
-    cat - ${MIGCOMMAND_LOG} > temp.log && mv temp.log ${MIGCOMMAND_LOG}
-    echo '"}' >> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG}
+    MIGLOG_CMDMSG="$1"
+    MIGLOG_CMDFUNCNAME="${2:-${FUNCNAME[1]}}"
+    MIGLOG_CMDLINENO="${3:-${BASH_LINENO[0]}}"
+    MIGLOG_CMDUPTIME="$(cat /proc/uptime | awk '{print $1}')"
+    MIGLOG_CMDLOG="\n vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv \n $(cat ${MIGCOMMAND_LOG}) \n ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n"
 
-    curl -X POST \
-    -d "@${MIGCOMMAND_LOG}" \
-    "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" || \
-    echo "ERROR: Can't Send logCommand"
+    echo -e '{ "os":"RASPB", '\
+    '"device":"'"${MIGDID}"'", '\
+    '"script":"'"${MIGLOG_SCRIPTNAME}"'", '\
+    '"function":"'"${MIGLOG_CMDFUNCNAME}"'", '\
+    '"line":"'"${MIGLOG_CMDLINENO}"'", '\
+    '"uptime":"'"${MIGLOG_CMDUPTIME}"'", '\
+    '"state":"'"CMDLOG"'", '\
+    '"msg":"'"${MIGLOG_CMDMSG}"'", '\
+    '"cmdlog":"'"${MIGLOG_CMDLOG}"'"}' |& \
+    tee -a ${MIGSCRIPT_LOG} |& \
+    curl -ki --data @- "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG} || \
+    echo "FAIL at send logCommand" &>>${MIGSCRIPT_LOG}
 }
 
+# USE: logevent STATE 
+# USE: logevent STATE MESSAGE
+# USE: logevent STATE MESSAGE FUNCNAME 
+# USE: logevent STATE MESSAGE FUNCNAME BASH_LINENO
 function logEvent {
-    echo '{"device":"'"${MIGDID}"'", '\
-    '"script":"migDiagnostic.sh", '\
-    '"function":"'"${FUNCNAME[1]}"'", '\
-    '"line":"'"${BASH_LINENO[0]}"'", '\
-    '"uptime":"'"$(cat /proc/uptime | awk '{print $1}')"'", '\
-    '"state":"'"${MIGSCRIPT_STATE}"'", '\
-    '"msg":"'"$1"'"}' | \
-    tee -a ${MIGSCRIPT_LOG} /dev/tty | \
-    curl -i -H "Accept: application/json" \
+    MIGLOG_STATE="${1:-INFO}"
+    MIGLOG_MSG="${2:-INFO}"
+    MIGLOG_FUNCNAME="${3:-${FUNCNAME[1]}}"
+    MIGLOG_LINENO="${4:-${BASH_LINENO[0]}}"
+    MIGLOG_UPTIME="$(cat /proc/uptime | awk '{print $1}')"
+
+    echo '{ "os":"RASPB", '\
+    '"device":"'"${MIGDID}"'", '\
+    '"script":"'"${MIGLOG_SCRIPTNAME}"'", '\
+    '"function":"'"${MIGLOG_FUNCNAME}"'", '\
+    '"line":"'"${MIGLOG_LINENO}"'", '\
+    '"uptime":"'"${MIGLOG_UPTIME}"'", '\
+    '"state":"'"${MIGLOG_STATE}"'", '\
+    '"msg":"'"${MIGLOG_MSG}"'"}' |& \
+    tee -a ${MIGSCRIPT_LOG} |& \
+    curl -kvi -H "Accept: application/json" \
     -X POST \
     --data @- \
     "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || \
-    {
-        echo "ERROR: Can't Send logEvent"
-        logCommand
-    }
+    logCommand "FAIL at send logEvent"
 }
 
 function logFilePush {
-    MIGSCRIPT_STATE="INFO"
-    logEvent "$(curl --upload-file ${MIGSCRIPT_LOG} https://filepush.co/upload/)"
+    MIGLOG_FILEPUSH_URLLOG=$(curl --upload-file "${MIGSCRIPT_LOG}" https://filepush.co/upload/)
+    logEvent "INFO" "${MIGLOG_FILEPUSH_URLLOG}"
+    echo "${MIGLOG_FILEPUSH_URLLOG}"
+}
+
+# USE: exitError MESSAGE 
+# USE: exitError MESSAGE logCommand <to run logCommand too>
+function exitError {
+    touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
+    MIGLOG_MSG="${1:-DIAGNOSTIC_FAIL}"
+
+    [[ "logCommand" == "$2" ]] && logCommand "${MIGLOG_MSG}" "${FUNCNAME[1]}" "${BASH_LINENO[0]}"
+
+    logEvent "EXIT" "${MIGLOG_MSG}" "${FUNCNAME[1]}" "${BASH_LINENO[0]}"
+    
+    echo "" &>>${MIGSCRIPT_LOG}
+    date |& tee -a ${MIGSCRIPT_LOG}
+    echo "[ ####    DIAGNOSTIC FAIL    #### ]" |& tee -a ${MIGSCRIPT_LOG}
+    echo "" &>>${MIGSCRIPT_LOG}
+    echo "${MIGLOG_SCRIPTNAME}:${FUNCNAME[1]}[${BASH_LINENO[0]}] ${MIGLOG_MSG}" |& tee -a ${MIGSCRIPT_LOG}
+
+    logFilePush
+    rm -vf ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING
+    exit $LINENO
 }
 
 function validateOS {
-    MIGSCRIPT_STATE="INI"
-    logEvent
+    logEvent "INI"
 
-    if [[ -f '/etc/os-release' ]]; then
-        source '/etc/os-release'
-    else
-        MIGSCRIPT_STATE="FAIL"
-        logEvent "/etc/os-release missing"
-        >${MIGCOMMAND_LOG}
-        diagExitError
-    fi    
+    source '/etc/os-release' &>${MIGCOMMAND_LOG} || \
+    exitError "FAIL source /etc/os-release" logCommand
 
-    if [[ 'raspbian' = ${ID} ]]; then
-        MIGSCRIPT_STATE="OK"
-        logEvent "raspbian detected: ${PRETTY_NAME}"
-    else
-        MIGSCRIPT_STATE="FAIL"
-        logEvent "Wrong OS: ${ID} / ${PRETTY_NAME}"
-        >${MIGCOMMAND_LOG}
-        diagExitError
-    fi
+    # if [[ -f '/etc/os-release' ]]; then
+    #     source '/etc/os-release'
+    # else
+    #     MIGSCRIPT_STATE="FAIL"
+    #     logEvent "/etc/os-release missing"
+    #     >${MIGCOMMAND_LOG}
+    #     exitError
+    # fi    
 
-    MIGSCRIPT_STATE="END"
-    logEvent
+    [[ 'raspbian' = ${ID} ]] && \
+    logEvent "OK" "raspbian detected: ${PRETTY_NAME}" || 
+    exitError "Wrong OS: ${ID} / ${PRETTY_NAME}"
+
+    # if [[ 'raspbian' = ${ID} ]]; then
+    #     MIGSCRIPT_STATE="OK"
+    #     logEvent "OK" "raspbian detected: ${PRETTY_NAME}"
+    # else
+    #     MIGSCRIPT_STATE="FAIL"
+    #     logEvent "Wrong OS: ${ID} / ${PRETTY_NAME}"
+    #     >${MIGCOMMAND_LOG}
+    #     exitError
+    # fi
+
+    logEvent "END"
     return 0
 }
 
 # https://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/
 function validateRPI {
-    MIGSCRIPT_STATE="INI"
-    logEvent
+    logEvent "INI"
 
     if [[ -f '/proc/device-tree/model' ]]; then
         MIG_RPI_MODEL=$(cat /proc/device-tree/model)
         MIG_RPI_NAME=$(echo ${MIG_RPI_MODEL} | awk '{print $1 $2}')
         MIG_RPI_VER=$(echo ${MIG_RPI_MODEL} | awk '{print $3}')
 
-        if [[ 'RaspberryPi' == "${MIG_RPI_NAME}" ]] && [[ 3 -eq ${MIG_RPI_VER} ]]; then
-            MIGSCRIPT_STATE="OK"
-            logEvent "RaspberryPi 3 detected: ${MIG_RPI_MODEL}"
-        else
-            MIGSCRIPT_STATE="FAIL"
-            logEvent "Wrong RPI: ${MIG_RPI_MODEL}"
-            >${MIGCOMMAND_LOG}
-            diagExitError
-        fi
+        [[ 'RaspberryPi' == "${MIG_RPI_NAME}" ]] && \
+        [[ 3 -eq ${MIG_RPI_VER} ]] && \
+        logEvent "OK" "RaspberryPi 3 detected: ${MIG_RPI_MODEL}" || \
+        exitError "Wrong RPI: ${MIG_RPI_MODEL}"
 
+        # if [[ 'RaspberryPi' == "${MIG_RPI_NAME}" ]] && [[ 3 -eq ${MIG_RPI_VER} ]]; then
+        #     MIGSCRIPT_STATE="OK"
+        #     logEvent "RaspberryPi 3 detected: ${MIG_RPI_MODEL}"
+        # else
+        #     MIGSCRIPT_STATE="FAIL"
+        #     logEvent "Wrong RPI: ${MIG_RPI_MODEL}"
+        #     >${MIGCOMMAND_LOG}
+        #     exitError
+        # fi
     else
-        MIGSCRIPT_STATE="FAIL"
-        logEvent "/proc/device-tree/model missing"
-        >${MIGCOMMAND_LOG}
-        diagExitError
+        # MIGSCRIPT_STATE="FAIL"
+        # logEvent "/proc/device-tree/model missing"
+        # >${MIGCOMMAND_LOG}
+        # exitError
+
+        exitError "ERROR" "Missing /proc/device-tree/model"
     fi    
 
-    MIGSCRIPT_STATE="END"
-    logEvent
+    logEvent "END"
     return 0
 }
 
 function validateBootPartition {
-    MIGSCRIPT_STATE="INI"
-    logEvent
+    logEvent "INI"
 
-    if [[ -b "${MIGBOOT_DEV}" ]]; then
-        MIGSCRIPT_STATE="OK"
-        logEvent "${MIGBOOT_DEV} detected"
-    else
-        MIGSCRIPT_STATE="FAIL"
-        logEvent "${MIGBOOT_DEV} missing"
-        diagExitError
-    fi
+    [[ -b "${MIGBOOT_DEV}" ]] && \
+    logEvent "OK" "${MIGBOOT_DEV} detected" || \
+    exitError "Missing ${MIGBOOT_DEV}"
+
+    # if [[ -b "${MIGBOOT_DEV}" ]]; then
+    #     MIGSCRIPT_STATE="OK"
+    #     logEvent "${MIGBOOT_DEV} detected"
+    # else
+    #     MIGSCRIPT_STATE="FAIL"
+    #     logEvent "${MIGBOOT_DEV} missing"
+    #     exitError
+    # fi
 
     # MIGBOOT_MOUNT=$(mount | grep "${MIGBOOT_DEV}.on./boot")
-    mount &> ${MIGCOMMAND_LOG} && \
+    mount &>${MIGCOMMAND_LOG} && \
     cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} && \
     cat ${MIGCOMMAND_LOG} | grep "${MIGBOOT_DEV}.on./boot" &>>${MIGSCRIPT_LOG} || \
-    {
-        MIGSCRIPT_STATE="FAIL";
-        logEvent "Boot device do not mounted: ${MIGBOOT_DEV}";
-        logCommand;
-        diagExitError;
-    }
+    exitError "Boot device do not mounted: ${MIGBOOT_DEV}" logCommand
+    # {
+        # MIGSCRIPT_STATE="FAIL";
+        # logEvent "Boot device do not mounted: ${MIGBOOT_DEV}";
+        # logCommand;
+        # exitError;
+    # }
+
     # if [[ 0 -ne $? ]]; then
     #     MIGSCRIPT_STATE="FAIL"
     #     logEvent "Boot device do not mounted: ${MIGBOOT_DEV}"
-    #     mount &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG}
+    #     mount &>${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG}
     #     logCommand
-    #     diagExitError
+    #     exitError
     # fi
     
     # fdisk -l ${MIGMMC} 2>&1 | tee ${MIGCOMMAND_LOG}
     # fdisk -l ${MIGMMC} |& tee ${MIGCOMMAND_LOG}
     # logCommand
 
-    fdisk -l ${MIGMMC} &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
-    { logCommand; diagExitError; }
+    fdisk -l ${MIGMMC} &>${MIGCOMMAND_LOG} && \
+    cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
+    exitError "FAIL at exec fdisk -l" logCommand
+    # { logCommand; exitError; }
 
     MIGBOOT_DATA=$(fdisk -l ${MIGMMC} | grep ${MIGBOOT_DEV})
     MIGBOOT_START=$(echo ${MIGBOOT_DATA} | awk '{print $2}')
@@ -186,85 +240,87 @@ function validateBootPartition {
 
     case ${MIGBOOT_SIZE} in
         '40M')
-            MIGSCRIPT_STATE="OK"
-            logEvent "${MIGBOOT_SIZE} detected"
+            logEvent "OK" "${MIGBOOT_SIZE} detected"
             if [[ 8192 -eq ${MIGBOOT_START} ]] && [[ 90111 -eq ${MIGBOOT_END} ]] && [[ 81920 -eq ${MIGBOOT_SECTORS} ]]; then
-                logEvent "Logical sectors verified: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
+                logEvent "OK" "Logical sectors verified: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
                 echo "MIGCONFIG_BOOTSIZE=40" >>${MIGCONFIG_FILE}
+                MIGCONFIG_BOOTSIZE=40
             else
-                MIGSCRIPT_STATE="FAIL"
-                logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                >${MIGCOMMAND_LOG}
-                diagExitError
+                # MIGSCRIPT_STATE="FAIL"
+                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
+                # >${MIGCOMMAND_LOG}
+                # exitError
+                exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
 
         '60M')
-            MIGSCRIPT_STATE="OK"
-            logEvent "${MIGBOOT_SIZE} detected"
+            logEvent "OK" "${MIGBOOT_SIZE} detected"
             if [[ 8192 -eq ${MIGBOOT_START} ]] && [[ 131071 -eq ${MIGBOOT_END} ]] && [[ 122880 -eq ${MIGBOOT_SECTORS} ]]; then
-                logEvent "Logical sectors verified: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
+                logEvent "OK" "Logical sectors verified: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
                 echo "MIGCONFIG_BOOTSIZE=60" >>${MIGCONFIG_FILE}
+                MIGCONFIG_BOOTSIZE=60
             else
-                MIGSCRIPT_STATE="FAIL"
-                logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                >${MIGCOMMAND_LOG}
-                diagExitError
+                # MIGSCRIPT_STATE="FAIL"
+                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
+                # >${MIGCOMMAND_LOG}
+                # exitError
+                exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
 
         '256M')
-            MIGSCRIPT_STATE="OK"
-            logEvent "${MIGBOOT_SIZE} detected"
+            logEvent "OK" "${MIGBOOT_SIZE} detected"
             if [[ 8192 -eq ${MIGBOOT_START} ]] && [[ 532479 -eq ${MIGBOOT_END} ]] && [[ 524288 -eq ${MIGBOOT_SECTORS} ]]; then
                 logEvent "Logical sectors verified: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
                 echo "MIGCONFIG_BOOTSIZE=256" >>${MIGCONFIG_FILE}
+                MIGCONFIG_BOOTSIZE=256
             else
-                MIGSCRIPT_STATE="FAIL"
-                logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                >${MIGCOMMAND_LOG}
-                diagExitError
+                # MIGSCRIPT_STATE="FAIL"
+                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
+                # >${MIGCOMMAND_LOG}
+                exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
 
         *)
-            MIGSCRIPT_STATE="FAIL"
-            logEvent "${MIGBOOT_SIZE} not suported"
-            >${MIGCOMMAND_LOG}
-            diagExitError
+            # MIGSCRIPT_STATE="FAIL"
+            # logEvent "${MIGBOOT_SIZE} not suported"
+            # >${MIGCOMMAND_LOG}
+            exitError "${MIGBOOT_SIZE} not suported"
     esac
 
-    MIGSCRIPT_STATE="END"
-    logEvent
+    logEvent "END"
     return 0
 }
 
 function validationNetwork {
-    MIGSCRIPT_STATE="INI"
-    logEvent
+    logEvent "INI"
 
     if [[ -f '/etc/dhcpcd.conf' ]]; then
         STATIC_IP=$(cat /etc/dhcpcd.conf | grep -vE "^#" | grep -E "static.*ip_address")
         if [[ 0 -eq $? ]]; then 
             MIGNET_IPSTATIC=1
-            MIGSCRIPT_STATE="OK"
-            logEvent "Static IP detected: ${STATIC_IP}"
+            logEvent "OK" "Static IP detected: ${STATIC_IP}"
         else
-            MIGSCRIPT_STATE="OK"
-            logEvent "DHCP detected"
+            logEvent "OK" "DHCP detected"
         fi
     else
-        MIGSCRIPT_STATE="FAIL"
-        logEvent "Missing /etc/dhcpcd.conf"
-        >${MIGCOMMAND_LOG}
-        diagExitError
+        # MIGSCRIPT_STATE="FAIL"
+        # logEvent "Missing /etc/dhcpcd.conf"
+        # >${MIGCOMMAND_LOG}
+        exitError "Missing /etc/dhcpcd.conf"
     fi
 
-    ip a &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
-    { logCommand; diagExitError; }
+    echo ">>> ip a" &>>${MIGSCRIPT_LOG}
+    ip a &>${MIGCOMMAND_LOG} && \
+    cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
+    exitError "FAIL at exec 'ip a'" logCommand
 
-    ip r &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
-    { logCommand; diagExitError; }
+    echo ">>> ip r" &>>${MIGSCRIPT_LOG}
+    ip r &>${MIGCOMMAND_LOG} && \
+    cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
+    exitError "FAIL at exec 'ip r'" logCommand
 
     for interface in $(ls /sys/class/net)
     do
@@ -276,8 +332,7 @@ function validationNetwork {
             # Ethernet
             'et')
                 if [[ 1 -eq $(cat /sys/class/net/${interface}/carrier) ]]; then
-                    MIGSCRIPT_STATE="OK"
-                    logEvent "Ethernet connection detected: ${interface}"
+                    logEvent "OK" "Ethernet connection detected: ${interface}"
                     echo "MIGCONFIG_ETH_CONN='UP'" >>${MIGCONFIG_FILE}
                     
                     MIGNET_ETHSTATIC=$(cat /etc/dhcpcd.conf | grep -vE "^#" | grep -E "interface.*${interface}")
@@ -297,42 +352,37 @@ function validationNetwork {
                         echo "MIGCONFIG_ETH_DHCP='YES'" >>${MIGCONFIG_FILE}
                     fi
                 else
-                    MIGSCRIPT_STATE="FAIL"
-                    logEvent "No Ethernet connection detected: ${interface}"
+                    logEvent "FAIL" "No Ethernet connection detected: ${interface}"
                 fi
                 ;;
             # Wireless
             'wl')
                 if [[ 1 -eq $(cat /sys/class/net/${interface}/carrier) ]]; then
-                    MIGSCRIPT_STATE="OK"
-                    logEvent "Wireless connection detected: ${interface}"
+                    logEvent "OK" "Wireless connection detected: ${interface}"
                     echo "MIGCONFIG_WLAN_CONN='UP'" >>${MIGCONFIG_FILE}
                     
-                    iwgetid ${interface} --raw &>${MIGCOMMAND_LOG} || { logCommand; diagExitError; }
+                    iwgetid ${interface} --raw &>${MIGCOMMAND_LOG} || \
+                    exitError "FAIL at exec 'iwgetid ${interface} --raw'" logCommand
 
                     MIGNET_WLANSSID=$(iwgetid ${interface} --raw)
 
                     if [[ -n ${MIGNET_WLANSSID} ]];then
-                        MIGSCRIPT_STATE="OK"
-                        logEvent "Wireless SSID detected: ${MIGNET_WLANSSID}"
+                        logEvent "OK" "Wireless SSID detected: ${MIGNET_WLANSSID}"
                         echo "MIGCONFIG_WLAN_SSID='${MIGNET_WLANSSID}'" >>${MIGCONFIG_FILE}
                     else
-                        MIGSCRIPT_STATE="FAIL"
-                        logEvent "No Wireless SSID detected: ${MIGNET_WLANSSID}"
+                        logEvent "FAIL" "No Wireless SSID detected: ${MIGNET_WLANSSID}"
                     fi
 
                     cat '/etc/wpa_supplicant/wpa_supplicant.conf' &>${MIGCOMMAND_LOG} && \
                     grep 'psk' ${MIGCOMMAND_LOG} | cut -d '=' -f 2 &>var.tmp && \
                     MIGNET_WLANPSK=$(cat var.tmp) || \
-                    { logCommand; diagExitError; }
+                    exitError "ERROR to get psk" logCommand
                     
                     if [[ -n ${MIGNET_WLANPSK} ]];then
-                        MIGSCRIPT_STATE="OK"
-                        logEvent "Wireless PSK detected: ${MIGNET_WLANPSK//\"}"
+                        logEvent "OK" "Wireless PSK detected: ${MIGNET_WLANPSK//\"}"
                         echo "MIGCONFIG_WLAN_PSK='${MIGNET_WLANPSK//\"}'" >>${MIGCONFIG_FILE}
                     else
-                        MIGSCRIPT_STATE="FAIL"
-                        logEvent "No Wireless PSK detected: ${MIGNET_WLANPSK}"
+                        logEvent "FAIL" "No Wireless PSK detected: ${MIGNET_WLANPSK}"
                     fi
                     
                     MIGNET_WLANSTATIC=$(cat /etc/dhcpcd.conf | grep -vE "^#" | grep -E "interface.*${interface}")
@@ -352,20 +402,187 @@ function validationNetwork {
                         echo "MIGCONFIG_WLAN_DHCP='YES'" >>${MIGCONFIG_FILE}
                     fi
                 else
-                    MIGSCRIPT_STATE="FAIL"
-                    logEvent "No Wireless connection detected: ${interface}"
+                    logEvent "FAIL" "No Wireless connection detected: ${interface}"
                 fi
                 ;;
             *)
-                MIGSCRIPT_STATE="FAIL"
-                logEvent "unrecognized network interface: ${interface}"
+                logEvent "FAIL" "unrecognized network interface: ${interface}"
                 ;;
         esac    
     done
 
-    MIGSCRIPT_STATE="END"
-    logEvent
+    logEvent "END"
     return 0
+}
+
+function backupFile {
+    MIGBKP_FILENAME=$(echo "$1" | awk '{n=split($1,A,"/"); print A[n]}')
+    
+    if [[ -f "$1" ]]; then
+        cp -v "$1" "${MIGSSTATE_DIR}/${MIGBKP_FILENAME}.bkp" &>${MIGCOMMAND_LOG} && \
+        cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} && \
+        logEvent "OK" "Backup of ${MIGBKP_FILENAME}" || \
+        exitError "ERROR to backup ${MIGBKP_FILENAME}" logCommand
+    else
+        exitError "Missing file $1"
+    fi
+}
+
+function backupSystemFiles {
+    logEvent "INI"
+
+    backupFile '/etc/network/interfaces'
+    backupFile '/etc/hostname'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/config/json/device.json'
+
+    [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
+    backupFile '/etc/wpa_supplicant/wpa_supplicant.conf'
+    
+    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]] || [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
+        backupFile '/etc/dhcpcd.conf'
+    fi
+
+    logEvent "END"
+}
+
+function makeNetFiles {
+    logEvent "INI"
+
+    if [[ 'NO' == "${MIGCONFIG_ETH_DHCP}" ]];then
+        >${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Fail to create"
+
+        echo "[match]" | tee ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[match]' to ${MIGNET_EN_FILE}" logCommand
+        echo "Name=en*" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append 'Name=en*' to ${MIGNET_EN_FILE}" logCommand
+        echo "[Network]" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[Network]' to ${MIGNET_EN_FILE}" logCommand
+        
+        if [[ -n ${MIGCONFIG_ETH_IPMASK} ]];then
+            echo "Address=${MIGCONFIG_ETH_IPMASK}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'Address=${MIGCONFIG_ETH_IPMASK}' to ${MIGNET_EN_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_ETH_IPMASK"
+        fi
+
+        if [[ -n ${MIGCONFIG_ETH_GWIP} ]];then
+            echo "Gateway=${MIGCONFIG_ETH_GWIP}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'Gateway=${MIGCONFIG_ETH_GWIP}' to ${MIGNET_EN_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_ETH_GWIP"
+        fi
+
+        if [[ -n ${MIGCONFIG_ETH_DNSIP} ]];then
+            echo "DNS=${MIGCONFIG_ETH_DNSIP}" | tee -a ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'DNS=${MIGCONFIG_ETH_DNSIP}' to ${MIGNET_EN_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_ETH_DNSIP"
+        fi
+
+        logEvent "OK" "Created ethernet static IP config file: ${MIGNET_EN_FILE}"
+
+        cat ${MIGNET_EN_FILE} &>${MIGCOMMAND_LOG} logCommand "cat ${MIGNET_EN_FILE}"
+    fi
+
+    if [[ 'NO' == "${MIGCONFIG_WLAN_DHCP}" ]];then
+        >${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't create ${MIGNET_WLAN0_FILE}" logCommand
+
+        echo "[match]" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[match]' to ${MIGNET_WLAN0_FILE}" logCommand
+        echo "Name=en*" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append 'Name=en*' to ${MIGNET_WLAN0_FILE}" logCommand
+        echo "[Network]" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || exitError "Can't append '[Network]' to ${MIGNET_WLAN0_FILE}" logCommand
+        
+        if [[ -n ${MIGCONFIG_WLAN_IPMASK} ]];then
+            echo "Address=${MIGCONFIG_WLAN_IPMASK}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'Address=${MIGCONFIG_WLAN_IPMASK}' to ${MIGNET_WLAN0_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_WLAN_IPMASK"
+        fi
+
+        if [[ -n ${MIGCONFIG_WLAN_GWIP} ]];then
+            echo "Gateway=${MIGCONFIG_WLAN_GWIP}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'Gateway=${MIGCONFIG_WLAN_GWIP}' to ${MIGNET_WLAN0_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_WLAN_GWIP"
+        fi
+
+        if [[ -n ${MIGCONFIG_WLAN_DNSIP} ]];then
+            echo "DNS=${MIGCONFIG_WLAN_DNSIP}" | tee -a ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} || \
+            exitError "Can't append 'DNS=${MIGCONFIG_WLAN_DNSIP}' to ${MIGNET_WLAN0_FILE}" logCommand
+        else
+            exitError "Missing MIGCONFIG_WLAN_DNSIP"
+        fi
+
+        logEvent "OK" "Created wireless static IP config file: ${MIGNET_WLAN0_FILE}"
+
+        cat ${MIGNET_WLAN0_FILE} &>${MIGCOMMAND_LOG} logCommand "cat ${MIGNET_WLAN0_FILE}"
+    fi
+
+    logEvent "END"
+}
+
+function checkFilesAtBucket {
+    logEvent "INI"
+
+    fileList=(  'appBalena.config.json' \
+                'migboot-migos-balena.tgz' \
+                "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
+                'p2-resin-rootA.img.gz' \
+                'p3-resin-rootB.img.gz' \
+                'p5-resin-state.img.gz' \
+                'p6-resin-data.img.gz' \
+                "resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk" \
+                )
+
+    for fileName in ${fileList[@]}
+    do
+        wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}" &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "${fileName} found in the bucket server" || \
+        exitError "ERROR to find ${fileName} in the bucket server" logCommand
+
+        # if [[ $? -ne 0 ]]; then
+        #     MIGSCRIPT_STATE="FAIL"
+        #     logEvent "${fileName} missing in the bucket"
+        #     logCommand
+        #     exitError
+        # else 
+        #     MIGSCRIPT_STATE="OK"
+        #     logEvent "${fileName} found in the bucket"
+        # fi        
+    done
+
+    for fileName in ${fileList[@]}
+    do
+        wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}.md5" &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "${fileName}.md5 found in the bucket server" || \
+        exitError "ERROR to find ${fileName}.md5 in the bucket server" logCommand
+
+        # if [[ $? -ne 0 ]]; then
+        #     MIGSCRIPT_STATE="FAIL"
+        #     logEvent "${fileName}.md5 missing in the bucket"
+        #     logCommand
+        #     exitError
+        # else 
+        #     MIGSCRIPT_STATE="OK"
+        #     logEvent "${fileName}.md5 found in the bucket"
+        # fi
+    done
+
+    logEvent "END"
+}
+
+function testMigState {
+    logEvent "INI"
+    
+    if [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]] && [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "MIGOS is already installed in the system. Reboot the system to initiate the migration process"
+    elif [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "[FAIL] MIGOS_BOOT is present in the system"
+    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]]; then
+        exitError "[FAIL] INSTALL MIGOS was SUCCESS but MIGOS_BOOT is not present in the system"
+    else
+        rm -rf ${MIGSSTATE_DIR} && \
+        echo "[OK] ${MIGSSTATE_DIR} deleted" || \
+        exitError "[FAIL] Can't delete ${MIGSSTATE_DIR}"
+
+        mkdir -vp ${MIGSSTATE_DIR}
+    fi
 }
 
 function testIsRoot {
@@ -374,6 +591,8 @@ function testIsRoot {
     then
         echo "[FAIL] Must be root to run this script."
         exit $LINENO
+    else
+        echo "[OK] Root"
     fi
 }
 
@@ -384,58 +603,76 @@ function testBucketConnection {
         echo "[FAIL] No connection to the bucket server detected"
         echo "Is necessary a connection to the bucket server to run this script."
         exit $LINENO
+    else
+        echo "[OK] Network"
+    fi
+}
+
+function testDiagnosticRunning {
+    sleep 0.$[ ( $RANDOM % 10 ) ]s
+    
+    if [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING ]]
+    then
+        echo "[FAIL] Another diagnostic script is running"
+        exit $LINENO
     fi
 }
 
 function iniDiagnostic {
-    MIGSCRIPT_STATE="INI"
-
     testIsRoot
     testBucketConnection
+    testDiagnosticRunning
 
-    if [[ -d ${MIGSSTATE_DIR} ]]; then
-        rm -rf ${MIGSSTATE_DIR} && \
-        echo "${MIGSSTATE_DIR} deleted" || \
-        {
-            echo "[FAIL] Can't delete ${MIGSSTATE_DIR}"
-            exit $LINENO
-        }
-    fi
-
-    mkdir -vp ${MIGSSTATE_DIR} && [[ -d ${MIGSSTATE_DIR} ]] && cd ${MIGSSTATE_DIR} || \
+    mkdir -vp ${MIGSSTATE_DIR} || \
     {
         echo "[FAIL] Can't create ${MIGSSTATE_DIR}"
         exit $LINENO
     }
 
-    echo "[ ## DIAGNOSTIC INI ## ]" |& tee -a ${MIGSCRIPT_LOG}
+    touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING
+
+    testMigState
+
+    touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING
+
+    echo "[ ####    DIAGNOSTIC INI    #### ]" |& tee -a ${MIGSCRIPT_LOG}
     date |& tee -a ${MIGSCRIPT_LOG}
 
-    logEvent
+    logEvent "INI"
 
-    # [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_FAIL
-    # [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS ]] && rm ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
-
-    echo "MIGCONFIG_DID='${MIGDID}'" >${MIGCONFIG_FILE} || \
-    { logCommand; diagExitError; }
+    echo "MIGCONFIG_DID='${MIGDID}'" |& tee -a ${MIGCONFIG_FILE} ${MIGSCRIPT_LOG} &>${MIGCOMMAND_LOG} || \
+    exitError "FAIL at inject MIGCONFIG_DID to ${MIGCONFIG_FILE}: ${MIGDID}" logCommand
 
     validateOS
     validateRPI
     validateBootPartition
     validationNetwork
 
+    source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
+    exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
+
+    backupSystemFiles
+    makeNetFiles
+    # TODO: make resin net files (system-connections)
+    # https://www.balena.io/docs/reference/OS/network/2.x/
+    # https://developer.gnome.org/NetworkManager/stable/nm-settings-keyfile.html
+    # https://developer.gnome.org/NetworkManager/stable/nm-settings.html
+    checkFilesAtBucket
+
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
 
-    MIGSCRIPT_STATE="SUCCESS"
-    logEvent "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
+    [[ -f ${MIGOS_RASPBIAN_BOOT_FILE} ]] || touch ${MIGOS_RASPBIAN_BOOT_FILE}
 
-    echo "" |& tee -a ${MIGSCRIPT_LOG}
-    cat ${MIGCONFIG_FILE} |& tee -a ${MIGSCRIPT_LOG}
-    echo "" |& tee -a ${MIGSCRIPT_LOG}
-    date |& tee -a ${MIGSCRIPT_LOG}
-    echo "[ ## DIAGNOSTIC SUCCESS ## ]" |& tee -a ${MIGSCRIPT_LOG}
+    logEvent "SUCCESS" "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
+
+    echo "" &>>${MIGSCRIPT_LOG}
+    cat ${MIGCONFIG_FILE} &>>${MIGSCRIPT_LOG}
+    echo "" &>>${MIGSCRIPT_LOG}
+    date &>>${MIGSCRIPT_LOG}
+    echo "[ ####    DIAGNOSTIC SUCCESS    #### ]" |& tee -a ${MIGSCRIPT_LOG}
 
     logFilePush
+    rm -vf ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_IS_RUNING
 }
 
 iniDiagnostic

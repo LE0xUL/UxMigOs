@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.229/balenaos/scripts/migBackup.sh' | bash
-# curl -s 'http://10.0.0.229/balenaos/scripts/migBackup.sh' | bash
+# wget -O - 'http://10.0.0.21/balenaos/migscripts/migBackup.sh' | bash
+# curl -s 'http://10.0.0.21/balenaos/migscripts/migBackup.sh' | bash
 # wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' | bash
 # curl 'https://storage.googleapis.com/balenamigration/migscripts/migBackup.sh?ignoreCache=1' --output migBackup.sh
 
@@ -33,9 +33,9 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='http://10.0.0.229/balenaos'
+MIGBUCKET_URL='http://10.0.0.21/balenaos'
 # MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
-MIGBUCKET_FILETEST='testbucketconnection.file'
+MIGBUCKET_FILETEST='test.file'
 
 function bkpExitError {
     touch ${MIGSSTATE_DIR}/MIG_BACKUP_FAIL
@@ -178,13 +178,13 @@ function migState2Boot {
     logEvent
 
     # mkdir -p ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
-    cp -rv ${MIGSSTATE_DIR} /boot &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    cp -rv ${MIGSSTATE_DIR} /boot |& tee -a ${MIGCOMMAND_LOG} ${MIGSCRIPT_LOG} || { logCommand; bkpExitError; }
     # cp -rv ${MIGSSTATE_DIR}/ ${MIGSSTATEDIR_BOOT}/ &>${MIGCOMMAND_LOG} || 
 
     MIGSCRIPT_STATE="OK"
     logEvent "Copyed migState in boot partition"
 
-    ls /boot &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG} && \
+    ls -alh /boot &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG} && \
     logCommand || bkpExitError
     
     MIGSCRIPT_STATE="END"
@@ -285,8 +285,10 @@ function testIsRoot {
     # Run as root, of course.
     if [[ "$UID" -ne "$ROOT_UID" ]]
     then
-        echo -e "[FAIL]\tMust be root to run this script."
+        echo "[FAIL] Must be root to run this script."
         exit $LINENO
+    else
+        echo "[OK] Root"
     fi
 }
 
@@ -294,9 +296,11 @@ function testBucketConnection {
     wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/$MIGBUCKET_FILETEST"
 
     if [[ $? -ne 0 ]]; then
-        echo "[FAIL]\tNo connection to the bucket server detected"
+        echo "[FAIL] No connection to the bucket server detected"
         echo "Is necessary a connection to the bucket server to run this script."
         exit $LINENO
+    else
+        echo "[OK] Network"
     fi
 }
 
@@ -304,14 +308,12 @@ function testMigStateExist {
     [[ -d ${MIGSSTATE_DIR} ]] && \
     cd ${MIGSSTATE_DIR} && \
     [[ -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS ]] && \
-    [[ -f ${MIGCONFIG_FILE} ]] || \
+    [[ -f ${MIGCONFIG_FILE} ]] && \
+    echo "[OK] ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS" || \
     {
-        ls -alh ${MIGSSTATE_DIR}
-        echo -e "[FAIL]\tIs necessary run first the migDiagnostic.sh script with success result."
+        echo "[FAIL] Is necessary run first the migDiagnostic.sh script with success result."
         exit $LINENO
     }
-
-    [[ -f ${MIGCOMMAND_LOG} ]] && >${MIGCOMMAND_LOG}
 }
 
 function iniBackupSystem {
@@ -359,8 +361,8 @@ function iniBackupSystem {
     echo -e "* BACKUP SUCCESS *" | tee -a ${MIGSCRIPT_LOG}
     echo -e "******************" | tee -a ${MIGSCRIPT_LOG}
     echo -e "\n\n" | tee -a ${MIGSCRIPT_LOG}
-
-    rsync -av ${MIGSSTATE_DIR} ${MIGSSTATEDIR_BOOT} &>${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG} || \
+    
+    cp -rv ${MIGSSTATE_DIR} /boot &>${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG} || \
     { logCommand; bkpExitError; }
 }
 
