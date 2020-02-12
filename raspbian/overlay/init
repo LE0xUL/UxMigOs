@@ -111,6 +111,11 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
         cp -v ${MIGSSTATEDIR_BOOT}/resin* ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
         echo "MIGOS | Init | OK | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
         echo "MIGOS | Init | ERROR | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+
+        # Update config.json
+        cp -v ${MIGSSTATEDIR_BOOT}/appBalena.config.json ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+        echo "MIGOS | Init | OK | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
+        echo "MIGOS | Init | ERROR | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     else
         echo "MIGOS | Init | ERROR | MIGSTATE BOOT DIR NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_NOT_FOUND_ERROR

@@ -38,7 +38,6 @@ MIG_FILE_RESIN_BOOT="p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz"
 MIG_FILE_RESIN_CONFIG_JSON='appBalena.config.json'
 
 MIG_FILE_LIST_BUCKET=( \
-    ${MIG_FILE_RESIN_CONFIG_JSON} \
     ${MIG_FILE_RESIN_SFDISK} \
     ${MIG_FILE_RESIN_BOOT} \
     ${MIG_FILE_RESIN_ROOTA} \
@@ -380,23 +379,29 @@ function migrationFSM {
         'CONFIG')
             bootMount UPDATE_BOOT_CONFIG || return 1
             
-            execCmmd "cp ${MIG_RAMDISK}/${MIG_FILE_RESIN_CONFIG_JSON} ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
-            { LogEvent "ERROR"; bootMount UPDATE_BOOT_CONFIG; return 1; }
+            execCmmd "cp ${MIGSSTATE_DIR}/${MIG_FILE_RESIN_CONFIG_JSON} ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
+            { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
 
             if [[ -f ${MIGSSTATE_DIR}/resin-wlan ]]; then
                 execCmmd "mkdir -vp ${MIGBOOT_MOUNTDIR}/system-connections" logSuccess && \
                 execCmmd "cp -v ${MIGSSTATE_DIR}/resin-wlan ${MIGBOOT_MOUNTDIR}/system-connections/" logSuccess || \
-                { LogEvent "ERROR"; bootMount UPDATE_BOOT_CONFIG; return 1; }
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
             else
                 logEvent "INFO" "missing resin-wlan"
+            fi
+
+            if [[ -f ${MIGSSTATE_DIR}/resin-ethernet ]]; then
+                execCmmd "mkdir -vp ${MIGBOOT_MOUNTDIR}/system-connections" logSuccess && \
+                execCmmd "cp -v ${MIGSSTATE_DIR}/resin-ethernet ${MIGBOOT_MOUNTDIR}/system-connections/" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+            else
+                logEvent "INFO" "missing resin-ethernet"
             fi
             
             touch ${MIGSSTATE_DIR}/MIG_FSM_CONFIG_OK 
             logEvent "OK" "CONFIG -> ${MIGBOOT_DEVICE}"
-            bootMount UPDATE_BOOT_CONFIG || return 1
+            bootUmount UPDATE_BOOT_CONFIG || return 1
             ;;
-        # TODO: copy backup files AND configurations to systemconections
-        # TODO: make a copy of [migstate] in [DATA]
 
         'SUCCESS')
             touch ${MIGSSTATE_DIR}/MIG_FSM_SUCCESS

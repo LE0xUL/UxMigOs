@@ -7,7 +7,7 @@ this_dir = pathlib.Path(__file__).parent
 package = {
     'requires': [],
     'sysroot_debs': [],
-    'root_debs': ['wget', 'curl'],
+    'root_debs': ['wget', 'curl', 'jq'],
     'target': this_dir / 'migscripts.tar.gz',
     'install': [],
 }

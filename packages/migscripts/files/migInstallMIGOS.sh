@@ -37,6 +37,9 @@ MIGNET_SYSTEMD_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
 MIGNET_RESIN_WLAN_FILE="${MIGSSTATE_DIR}/resin-wlan"
 MIGNET_RESIN_ETH_FILE="${MIGSSTATE_DIR}/resin-ethernet"
 
+MIGFILE_BALENA_CONFIG_JSON="appBalena.config.json"
+MIGFILE_JQ_PACKAGE="jq_1.4-2.1+deb8u1_armhf.deb"
+
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
@@ -430,7 +433,7 @@ function downFilesFromBucket {
     MIGMD5_ATTEMPTMAX=2
 
     MIG_FILE_BUCKET_LIST=(  \
-        'appBalena.config.json' \
+        "${MIGFILE_BALENA_CONFIG_JSON}" \
         'migboot-migos-balena.tgz' \
         "resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk" \
         "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
@@ -438,6 +441,7 @@ function downFilesFromBucket {
         'p3-resin-rootB.img.gz' \
         'p5-resin-state.img.gz' \
         'p6-resin-data.img.gz' \
+        "${MIGFILE_JQ_PACKAGE}" \
     )
 
     execCmmd "mkdir -vp ${MIGDOWN_DIR}" logSuccess || \
@@ -481,6 +485,42 @@ function downFilesFromBucket {
 
         # logEvent "OK" "Success download of ${fileName}"
     done
+
+    logEvent "END"
+}
+
+# https://stedolan.github.io/jq/manual/
+# https://stedolan.github.io/jq/tutorial/
+# https://stedolan.github.io/jq/
+# https://github.com/balena-io/balenaos-masterclass
+# https://www.balena.io/docs/reference/OS/configuration/
+function makeBalenaConfigJson {
+    logEvent "INI"
+    # PROVISIONING_TOKEN="e2c703f3-7986-4532-91a7-632a40429b61"
+    # APPLICATION_ID="FACEV2"
+    # DEVICE_ID="b827eb05ff86"
+    # DEVICE_ID="$(ip a show dev eth0 | grep "link/ether " | awk '{print $2}' | tr -d ':')"
+
+    execCmmd "jq --version" logSuccess || \
+    {
+        logEvent "INFO" "jq not detected. Try to install it" 
+        execCmmd "dpkg -i ${MIGDOWN_DIR}/${MIGFILE_JQ_PACKAGE}" logSuccess && \
+        logEvent "OK" "jq was installed" || \
+        exitError "Fail at install jq"
+    }
+
+    DEVICE_ID="$(cat /sys/class/net/eth0/address | tr -d ':')"
+    [[ 0 -ne $? ]] && exitError "Can't set DEVICE_ID"
+
+    if [[ -f ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} ]]; then
+        # "wifiSsid": "",
+        # "wifiKey": ""
+        execCmmd "jq '.+ {\"hostname\": \"${DEVICE_ID}\"}' ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} > ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" && \
+        logEvent "OK" "Created ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" || \
+        exitError "Can't create ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}"
+    else
+        exitError "Missing ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON}"
+    fi
 
     logEvent "END"
 }
@@ -601,6 +641,7 @@ function iniMigosInstall {
     makeNetFilesResin
 
     downFilesFromBucket
+    makeBalenaConfigJson
     migos2Boot
     migState2Boot
 
