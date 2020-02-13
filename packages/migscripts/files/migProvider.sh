@@ -2,6 +2,8 @@
 # TODO:
 # - Validate Token
 # - Validate UUID
+# 
+# MIGSCRIPT_LOG
 
 # APPLICATION_ID
 # FACEV2
@@ -16,6 +18,11 @@
 # mac_add 70:88:6b:87:ea:b9
 # b8:27:eb:a0:a8:71 -> b827eba0a871
 
+MIGLOG_SCRIPTNAME=$(basename "$0")
+MIGSCRIPT_LOG="provider.log"
+MIGCOMMAND_LOG="cmdprovider.log"
+MIGDID=""
+
 MIGTOKEN_BALENACLOUD="ErR56DEPe87jpjKaTg8JDPMORRD8F44A"
 MIGFILE_DEVICESLIST="devlist.txt"
 MIGFILE_DEVICEINFO="devinfo.txt"
@@ -27,38 +34,92 @@ MIG_BALENA_APP_PROD="testMigration"
 MIGVAR_APPLICATION_ID="FACEV2"
 MIGVAR_PROJECT_ID="admobilize-testing"
 
-echo ">>> Detect balena version"
-balena -v
+MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
+MIGTOKEN_PROVIDERLOG="859e69f9-0700-450f-b673-bbbba059bb64"
+
+# USE: logevent STATE 
+# USE: logevent STATE MESSAGE
+# USE: logevent STATE MESSAGE BASH_LINENO
+function logEvent {
+    MIGLOG_STATE="${1:-INFO}"
+    MIGLOG_MSG="${2:----}"
+    MIGLOG_LINENO="${3:-${BASH_LINENO[0]}}"
+    MIGLOG_UPTIME="$(cat /proc/uptime | awk '{print $1}')"
+
+    [[ -s ${MIGCOMMAND_LOG} ]] && \
+    MIGLOG_CMDLOG="$(cat ${MIGCOMMAND_LOG})" || \
+    MIGLOG_CMDLOG=""
+    
+    echo -e "[${MIGLOG_STATE}](${MIGLOG_LINENO})\t${MIGLOG_MSG}"
+
+    echo '{ "device":"'"${MIGDID}"'", '\
+    '"script":"'"${MIGLOG_SCRIPTNAME}"'", '\
+    '"line":"'"${MIGLOG_LINENO}"'", '\
+    '"uptime":"'"${MIGLOG_UPTIME}"'", '\
+    '"state":"'"${MIGLOG_STATE}"'", '\
+    '"msg":"'"${MIGLOG_MSG}"'", '\
+    '"cmdlog":"'"${MIGLOG_CMDLOG}"'"}' |& \
+    curl -ki -H "Accept: application/json" \
+    -X POST \
+    --data @- \
+    "${MIGWEBLOG_URL}/${MIGTOKEN_PROVIDERLOG}" &>${MIGCOMMAND_LOG} || \
+    { echo -e "[FAIL]($LINENO)\tat send logEvent"; cat ${MIGCOMMAND_LOG}; }
+    >${MIGCOMMAND_LOG}
+}
+
+>${MIGCOMMAND_LOG}
+logEvent "INI" "$(date)"
+echo ""
+
+>${MIGCOMMAND_LOG}
+logEvent "INFO" ">>> Detect balena version"
+balena -v |& tee ${MIGCOMMAND_LOG}
 
 if [[ 0 -ne $? ]]; then
-    echo "[FAIL] BalenaCLI not found. Install it first"
+    logEvent "FAIL" "BalenaCLI not found. Install it first"
     exit $LINENO
+else
+    logEvent "OK"
 fi
+echo ""
 
-echo ">>> Detect jq version"
-jq --version
+>${MIGCOMMAND_LOG}
+logEvent "INFO" ">>> Detect jq version"
+jq --version |& tee ${MIGCOMMAND_LOG}
 
 if [[ 0 -ne $? ]]; then
-    echo "[FAIL] jq not found. Install it first"
+    logEvent "FAIL" "jq not found. Install it first"
     exit $LINENO
+else
+    logEvent "OK"
 fi
+echo ""
 
-echo ">>> Watching for new migrated devices"
+>${MIGCOMMAND_LOG}
+logEvent "INFO" "Watching for new migrated devices"
+echo ""
 while true
 do
     # balena devices >${MIGFILE_DEVICESLIST}
-    balena devices --application ${MIG_BALENA_APP_INIT} >${MIGFILE_DEVICESLIST} || \
+    balena devices --application ${MIG_BALENA_APP_INIT} &>${MIGFILE_DEVICESLIST} || \
     {
-        # echo ">>> Try balena login"
-        balena login --token ${MIGTOKEN_BALENACLOUD} || \
-        { echo "[FAIL] Balena Login"; exit $LINENO; }
+        >${MIGCOMMAND_LOG}
+        logEvent "INFO" "Try balena login first"
+        balena login --token ${MIGTOKEN_BALENACLOUD} |& tee ${MIGCOMMAND_LOG} && \
+        logEvent "OK" "Balena Login" || \
+        { logEvent "FAIL" "Balena Login"; exit $LINENO; }
 
-        balena devices --application ${MIG_BALENA_APP_INIT} >${MIGFILE_DEVICESLIST} || \
-        { echo "[FAIL] GET Migrated Devices list"; exit $LINENO; }
+        balena devices --application ${MIG_BALENA_APP_INIT} &>${MIGFILE_DEVICESLIST} || \
+        { 
+            cat ${MIGFILE_DEVICESLIST} &>${MIGCOMMAND_LOG}
+            logEvent "FAIL" "GET Migrated Devices list"; 
+            exit $LINENO; 
+        }
     }
 
     while read LINE
     do
+        MIGDID=""
         MIGUUID_SHORT=$(echo "$LINE" | awk '{print $2}')
         [[ "UUID" == ${MIGUUID_SHORT} ]] && \
         {
@@ -67,83 +128,98 @@ do
         }
         # echo ${MIGUUID_SHORT}
 
-        balena device ${MIGUUID_SHORT} >${MIGFILE_DEVICEINFO}
-        [[ 0 -ne $? ]] && { echo "[FAIL] balena device"; exit $LINENO; }
+        MIGDID="${MIGUUID_SHORT}"
+
+        balena device ${MIGUUID_SHORT} &>${MIGFILE_DEVICEINFO} || \
+        { 
+            cat ${MIGFILE_DEVICEINFO} &>${MIGCOMMAND_LOG}
+            logEvent "FAIL" "At exec: balena device ${MIGUUID_SHORT}"; 
+            exit $LINENO; 
+        }
         
+        
+        >${MIGCOMMAND_LOG}
         MIGDEV_STATUS=$(cat ${MIGFILE_DEVICEINFO} | grep 'STATUS:' | awk '{print $2}')
-        [[ 0 -ne $? ]] && { echo "[FAIL] GET device STATUS"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "GET device STATUS"; exit $LINENO; }
         # [[ ${MIGDEV_STATUS} == 'idle' ]] && echo "IDLE"
 
         MIGDEV_ONLINE=$(cat ${MIGFILE_DEVICEINFO} | grep 'IS ONLINE:' | awk '{print $3}')
-        [[ 0 -ne $? ]] && { echo "[FAIL] GET device ONLINE"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "GET device ONLINE"; exit $LINENO; }
         # [[ ${MIGDEV_ONLINE} == 'true' ]] && echo "${MIGUUID_SHORT} online" || echo "${MIGUUID_SHORT} offline" 
         [[ ${MIGDEV_ONLINE} == 'true' ]] || continue
 
         echo ""
         echo ""
-        echo ">>> DEVICE FOUND"
-        echo "${MIGLIST_FIRSTLINE}"
-        echo "${LINE}"
+        logEvent "INFO" ">>> DEVICE FOUND"
+        logEvent "INFO" "${MIGLIST_FIRSTLINE}"
+        logEvent "INFO" "${LINE}"
+        echo ""
 
-        echo ">>> Get UUID"
+        logEvent "INFO" ">>> Get UUID"
         MIGDEV_UUID=$(cat ${MIGFILE_DEVICEINFO} | grep 'UUID:' | awk '{print $2}')
-        [[ 0 -ne $? ]] && { echo "[FAIL] GET device UUID"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "GET device UUID: ${MIGDEV_UUID}"; exit $LINENO; }
         
         if [[ -z ${MIGDEV_UUID} ]]; then
-            echo "[FAIL] Get UUID: ${MIGDEV_UUID}"
+            logEvent "FAIL" "Null UUID"
             exit $LINENO
         else
             # TODO: validate MIGDEV_UUID
-            echo "${MIGDEV_UUID}"
+            logEvent "OK" "${MIGDEV_UUID}"
         fi
+        echo ""
 
-        echo ">>> Fetch DEVICE ID"
+        logEvent "INFO" ">>> Fetch DEVICE ID"
         MIGDEV_DEVICEID=$(curl -sS -X POST --header "Content-Type:application/json" \
                         --header "Authorization: Bearer ${MIGTOKEN_BALENACLOUD}" \
                         --data '{"uuid":"'"${MIGDEV_UUID}"'", "method": "GET"}' \
                         "https://api.balena-cloud.com/supervisor/v1/device/host-config" | \
                         jq '.network.hostname' | tr -d '"')
-        [[ 0 -ne $? ]] && { echo "[FAIL] fetch DEVICE ID"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "fetch DEVICE ID: ${MIGDEV_DEVICEID}"; exit $LINENO; }
 
         if [[ -z ${MIGDEV_DEVICEID} ]] || [[ "null" == ${MIGDEV_DEVICEID} ]]; then
-            echo "[FAIL] Null DEVICE ID: ${MIGDEV_DEVICEID}"
+            logEvent "FAIL" "Null DEVICE ID"
             exit $LINENO
         fi
 
         if [[ ${MIGDEV_DEVICEID:0:6} == "b827eb" ]]; then
             MIGDEV_DEVICEID=${MIGDEV_DEVICEID:0:12}
-            echo "${MIGDEV_DEVICEID}"
+            MIGDID="${MIGUUID_SHORT}:${MIGDEV_DEVICEID}"
+            logEvent "OK" "${MIGDEV_DEVICEID}"
         else
-            echo "[FAIL] Invalid DEVICE ID: ${MIGDEV_DEVICEID}"
+            logEvent "FAIL" "Invalid DEVICE ID: ${MIGDEV_DEVICEID}"
             exit $LINENO
         fi
+        echo ""
 
-        echo ">>> Fetch PROVISIONING TOKEN"
+        logEvent "INFO" ">>> Fetch PROVISIONING TOKEN"
         MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{print $2}')
-        [[ 0 -ne $? ]] && { echo "[FAIL] Fetch PROVISIONING TOKEN"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "Fetch PROVISIONING TOKEN: ${MIGDEV_PROVISIONING_TOKEN}"; exit $LINENO; }
 
         if [[ -z ${MIGDEV_PROVISIONING_TOKEN} ]]; then
-            echo "[FAIL] Null PROVISIONING_TOKEN"
+            logEvent "FAIL" "Null PROVISIONING_TOKEN"
             exit $LINENO
         fi
         # TODO: validate MIGDEV_PROVISIONING_TOKEN
-        echo "${MIGDEV_PROVISIONING_TOKEN}"
+        logEvent "OK" "${MIGDEV_PROVISIONING_TOKEN}"
+        echo ""
 
-        echo ">>> Set var in device"
-        balena env add APPLICATION_ID ${MIGVAR_APPLICATION_ID} --device ${MIGDEV_UUID} && \
-        balena env add PROJECT_ID ${MIGVAR_PROJECT_ID} --device ${MIGDEV_UUID} && \
-        balena env add DEVICE_ID ${MIGDEV_DEVICEID} --device ${MIGDEV_UUID} && \
-        balena env add PROVISIONING_TOKEN ${MIGDEV_PROVISIONING_TOKEN} --device ${MIGDEV_UUID} && \
-        echo "OK" || { echo "[FAIL] ADD device var"; exit $LINENO; }
+        logEvent "INFO" ">>> Set var in device"
+        balena env add APPLICATION_ID ${MIGVAR_APPLICATION_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        balena env add PROJECT_ID ${MIGVAR_PROJECT_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        balena env add DEVICE_ID ${MIGDEV_DEVICEID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        balena env add PROVISIONING_TOKEN ${MIGDEV_PROVISIONING_TOKEN} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" || { logEvent "FAIL" "ADD device var"; exit $LINENO; }
+        echo ""
 
         sleep 3
 
-        echo ">>> Moving device to ${MIG_BALENA_APP_PROD}..."
-        balena device move ${MIGDEV_UUID} --application ${MIG_BALENA_APP_PROD} && \
-        echo "OK" || { echo "[FAIL] move device to ${MIG_BALENA_APP_PROD}"; exit $LINENO; }
-        echo "DEVID: ${MIGDEV_DEVICEID} successfully provisioning"
+        logEvent "INFO" ">>> Moving device to ${MIG_BALENA_APP_PROD}..."
+        balena device move ${MIGDEV_UUID} --application ${MIG_BALENA_APP_PROD} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" || { logEvent "FAIL" "move device to ${MIG_BALENA_APP_PROD}"; exit $LINENO; }
+        logEvent "INFO" "DEVID: ${MIGDEV_DEVICEID} successfully provisioning"
         echo ""
-        echo ">>> Watching for new migrated devices"
+        logEvent "INFO" ">>> Watching for new migrated devices"
+        echo ""
     done < ${MIGFILE_DEVICESLIST}
 
     sleep 15
