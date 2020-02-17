@@ -168,6 +168,7 @@ do
         fi
         echo ""
 
+        # https://www.balena.io/docs/reference/supervisor/supervisor-api/#patch-v1devicehost-config
         logEvent "INFO" ">>> Fetch DEVICE ID"
         MIGDEV_DEVICEID=$(curl -sS -X POST --header "Content-Type:application/json" \
                         --header "Authorization: Bearer ${MIGTOKEN_BALENACLOUD}" \
@@ -203,6 +204,7 @@ do
         logEvent "OK" "${MIGDEV_PROVISIONING_TOKEN}"
         echo ""
 
+        # https://www.balena.io/docs/reference/balena-cli/#envs
         logEvent "INFO" ">>> Set var in device"
         balena env add APPLICATION_ID ${MIGVAR_APPLICATION_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
         balena env add PROJECT_ID ${MIGVAR_PROJECT_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
