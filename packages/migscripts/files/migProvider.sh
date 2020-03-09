@@ -26,7 +26,8 @@ MIGDID=""
 MIGTOKEN_BALENACLOUD="ErR56DEPe87jpjKaTg8JDPMORRD8F44A"
 MIGFILE_DEVICESLIST="devlist.txt"
 MIGFILE_DEVICEINFO="devinfo.txt"
-MIGFILE_TOKENLIST="listProvToken.csv"
+# MIGFILE_TOKENLIST="listProvToken.csv"
+MIGFILE_TOKENLIST="devices_migrated.csv"
 
 MIG_BALENA_APP_INIT="BalenaMigration"
 MIG_BALENA_APP_PROD="testMigration"
@@ -189,7 +190,8 @@ do
         echo ""
 
         logEvent "INFO" ">>> Fetch PROVISIONING TOKEN"
-        MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{print $2}')
+        # MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{print $2}')
+        MIGDEV_PROVISIONING_TOKEN=$(cat devices_migrated.csv | grep b827eb0d53a3 | awk '{split($0,a,","); print a[6]}')
         [[ 0 -ne $? ]] && { logEvent "FAIL" "Fetch PROVISIONING TOKEN: ${MIGDEV_PROVISIONING_TOKEN}"; exit $LINENO; }
 
         if [[ -z ${MIGDEV_PROVISIONING_TOKEN} ]]; then
