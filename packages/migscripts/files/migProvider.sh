@@ -67,13 +67,11 @@ function logEvent {
     >${MIGCOMMAND_LOG}
 }
 
->${MIGCOMMAND_LOG}
 logEvent "INI" "$(date)"
 echo ""
 
->${MIGCOMMAND_LOG}
 logEvent "INFO" ">>> Detect balena version"
-balena -v |& tee ${MIGCOMMAND_LOG}
+balena -v &>${MIGCOMMAND_LOG}
 
 if [[ 0 -ne $? ]]; then
     logEvent "FAIL" "BalenaCLI not found. Install it first"
@@ -83,9 +81,8 @@ else
 fi
 echo ""
 
->${MIGCOMMAND_LOG}
 logEvent "INFO" ">>> Detect jq version"
-jq --version |& tee ${MIGCOMMAND_LOG}
+jq --version &>${MIGCOMMAND_LOG}
 
 if [[ 0 -ne $? ]]; then
     logEvent "FAIL" "jq not found. Install it first"
@@ -95,7 +92,6 @@ else
 fi
 echo ""
 
->${MIGCOMMAND_LOG}
 logEvent "INFO" "Watching for new migrated devices"
 echo ""
 while true
@@ -103,9 +99,8 @@ do
     # balena devices >${MIGFILE_DEVICESLIST}
     balena devices --application ${MIG_BALENA_APP_INIT} &>${MIGFILE_DEVICESLIST} || \
     {
-        >${MIGCOMMAND_LOG}
         logEvent "INFO" "Try balena login first"
-        balena login --token ${MIGTOKEN_BALENACLOUD} |& tee ${MIGCOMMAND_LOG} && \
+        balena login --token ${MIGTOKEN_BALENACLOUD} &> ${MIGCOMMAND_LOG} && \
         logEvent "OK" "Balena Login" || \
         { logEvent "FAIL" "Balena Login"; exit $LINENO; }
 
@@ -169,6 +164,7 @@ do
         echo ""
 
         # https://www.balena.io/docs/reference/supervisor/supervisor-api/#patch-v1devicehost-config
+        # https://www.balena.io/docs/reference/api/resources/device/
         logEvent "INFO" ">>> Fetch DEVICE ID"
         MIGDEV_DEVICEID=$(curl -sS -X POST --header "Content-Type:application/json" \
                         --header "Authorization: Bearer ${MIGTOKEN_BALENACLOUD}" \
@@ -204,7 +200,10 @@ do
         logEvent "OK" "${MIGDEV_PROVISIONING_TOKEN}"
         echo ""
 
+        # TODO: https://www.balena.io/docs/reference/api/resources/device/#rename-device
+
         # https://www.balena.io/docs/reference/balena-cli/#envs
+        # https://www.balena.io/docs/reference/api/resources/device_environment_variable/
         logEvent "INFO" ">>> Set var in device"
         balena env add APPLICATION_ID ${MIGVAR_APPLICATION_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
         balena env add PROJECT_ID ${MIGVAR_PROJECT_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
