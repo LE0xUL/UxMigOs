@@ -501,14 +501,6 @@ function makeBalenaConfigJson {
     # DEVICE_ID="b827eb05ff86"
     # DEVICE_ID="$(ip a show dev eth0 | grep "link/ether " | awk '{print $2}' | tr -d ':')"
 
-    execCmmd "jq --version" logSuccess || \
-    {
-        logEvent "INFO" "jq not detected. Try to install it" 
-        execCmmd "dpkg -i ${MIGDOWN_DIR}/${MIGFILE_JQ_PACKAGE}" logSuccess && \
-        logEvent "OK" "jq was installed" || \
-        exitError "Fail at install jq"
-    }
-
     DEVICE_ID="$(cat /sys/class/net/eth0/address | tr -d ':')"
     [[ 0 -ne $? ]] && exitError "Can't set DEVICE_ID"
 
@@ -561,6 +553,21 @@ function validateDiagnostic {
     exitError "'Diagnostic' is too old. Please, run it again."
 
     logEvent "OK" "Valid MIG_DIAGNOSTIC_SUCCESS"
+    logEvent "END"
+}
+
+function testJQ {
+    logEvent "INI"
+
+    execCmmd "jq --version" logSuccess && \
+    logEvent "OK" "jq is installed" || \
+    {
+        logEvent "INFO" "jq not detected. Try to install it" 
+        execCmmd "dpkg -i ${MIGDOWN_DIR}/${MIGFILE_JQ_PACKAGE}" logSuccess && \
+        logEvent "OK" "jq was installed" || \
+        exitError "Fail at install jq"
+    }
+
     logEvent "END"
 }
 
@@ -636,11 +643,12 @@ function iniMigosInstall {
     source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
     exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
 
+    downFilesFromBucket
+    testJQ
     backupSystemFiles
     makeNetFilesSystemd
     makeNetFilesResin
 
-    downFilesFromBucket
     makeBalenaConfigJson
     migos2Boot
     migState2Boot
