@@ -402,6 +402,15 @@ function validationNetwork {
                     logEvent "FAIL" "No Wireless connection detected: ${interface}"
                 fi
                 ;;
+            # 3G
+            'pp')
+                if [[ 1 -eq $(cat /sys/class/net/${interface}/carrier) ]]; then
+                    logEvent "OK" "3G connection detected: ${interface}"
+                    echo "MIGCONFIG_3G_CONN='UP'" >>${MIGCONFIG_FILE}
+                else
+                    logEvent "FAIL" "No 3G connection detected: ${interface}"
+                fi
+                ;;
             *)
                 logEvent "FAIL" "unrecognized network interface: ${interface}"
                 ;;
@@ -410,6 +419,22 @@ function validationNetwork {
 
     logEvent "END"
     return 0
+}
+
+function checkNetworkStatus {
+    logEvent "INI"
+
+    if [[ 'UP' == "${MIGCONFIG_ETH_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then
+        if [[ 'UP' == "${MIGCONFIG_ETH_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]]; then
+            logEvent "OK" "Valid connection detected"
+        else
+            exitError "3G connection is not supported in the migrate process"
+        fi
+    else
+        exitError "No network connection detected"
+    fi
+
+    logEvent "END"
 }
 
 function checkFilesAtBucket {
@@ -546,6 +571,7 @@ function iniDiagnostic {
     source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
     exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
 
+    checkNetworkStatus
     checkFilesAtBucket
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
