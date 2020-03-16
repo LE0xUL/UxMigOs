@@ -11,7 +11,7 @@ package = {
     'sysroot_debs': [],
 
     'root_debs': [
-        'net-tools', 'wpasupplicant', 'crda', 'firmware-brcm80211', 'ca-certificates', 'openssl',
+        'net-tools', 'wpasupplicant', 'crda', 'firmware-brcm80211', 'ca-certificates', 'openssl', 'ppp', 'ssh',
     ],
 
     'target': this_dir / 'net.tar.gz',
@@ -25,6 +25,7 @@ package = {
         '{chroot} {stage} /bin/systemctl reenable systemd-timesyncd',
         '{chroot} {stage} /bin/systemctl reenable systemd-networkd-wait-online.service',
         '{chroot} {stage} /bin/systemctl reenable wpa_supplicant@wlan0.service',
+        '{chroot} {stage} /bin/systemctl reenable ssh',
     ],
 
 }
