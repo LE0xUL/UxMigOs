@@ -36,6 +36,7 @@ MIGNET_SYSTEMD_EN_FILE="${MIGSSTATE_DIR}/en.network"
 MIGNET_SYSTEMD_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
 MIGNET_RESIN_WLAN_FILE="${MIGSSTATE_DIR}/resin-wlan"
 MIGNET_RESIN_ETH_FILE="${MIGSSTATE_DIR}/resin-ethernet"
+MIGNET_RESIN_3G_FILE="${MIGSSTATE_DIR}/resin-3g"
 
 MIGFILE_BALENA_CONFIG_JSON="appBalena.config.json"
 MIGFILE_JQ_PACKAGE="jq_1.4-2.1+deb8u1_armhf.deb"
@@ -370,6 +371,36 @@ function makeNetFilesResin {
         exitError "FAIL at create resin wlan file: ${MIGNET_RESIN_WLAN_FILE}"
     fi
 
+    MODEM3G_STATUSFILE='/usr/local/share/admobilize-adbeacon-software/public/files/status'
+
+    execCmmd "MODEM3G_ENABLED=$(jq '.modem.value.enabled' ${MODEM3G_STATUSFILE})"
+
+    if [[ "true" == "${MODEM3G_ENABLED}" ]]; then
+        logEvent "OK" "3G modem Detected"
+
+        execCmmd "MODEM3G_CARRIER_NAME=$(jq '.modem.value.carrier.name' ${MODEM3G_STATUSFILE})"
+        execCmmd "MODEM3G_CARRIER_APN=$(jq '.modem.value.carrier.apn.value' ${MODEM3G_STATUSFILE})"
+        
+        [[ -n ${MODEM3G_CARRIER_NAME} ]] && \
+        [[ -n ${MODEM3G_CARRIER_APN} ]] && \
+        execCmmd "echo '[connection]' >${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'id=${MODEM3G_CARRIER_NAME}' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'type=gsm' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '[gsm]' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'apn=${MODEM3G_CARRIER_APN}' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '[ipv4]' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo '[ipv6]' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'addr-gen-mode=stable-privacy' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "echo 'method=auto' >>${MIGNET_RESIN_3G_FILE}" && \
+        execCmmd "cat ${MIGNET_RESIN_3G_FILE}" logCommand && \
+        logEvent "OK" "Created resin 3G file: ${MIGNET_RESIN_3G_FILE}" || \
+        exitError "FAIL at create resin 3G file: ${MIGNET_RESIN_3G_FILE}"
+    fi
+
     logEvent "END"
 }
 
@@ -392,6 +423,10 @@ function backupSystemFiles {
     backupFile '/etc/network/interfaces'
     backupFile '/etc/hostname'
     backupFile '/usr/local/share/admobilize-adbeacon-software/config/json/device.json'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/status'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/carrierFile'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierConnect.sh'
+    backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierSetup.sh'
 
     [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
     backupFile '/etc/wpa_supplicant/wpa_supplicant.conf'
