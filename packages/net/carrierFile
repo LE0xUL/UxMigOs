@@ -1,0 +1,27 @@
+ABORT           BUSY
+ABORT           VOICE
+ABORT           "NO CARRIER"
+ABORT           "NO DIALTONE"
+ABORT           "NO DIAL TONE"
+ABORT           "NO ANSWER"
+ABORT           "DELAYED"
+ABORT           "ERROR"
+ABORT           "+CGATT: 0"
+ 
+""              AT
+TIMEOUT         12
+OK              ATH
+OK              ATE1
+ 
+# +CPIN provides the SIM card PIN
+#OK             "AT+CPIN=1234"
+ 
+# +CFUN may allow to configure the handset to limit operations to
+# GPRS/EDGE/UMTS/etc to save power, but the arguments are not standard
+# except for 1 which means "full functionality".
+#OK             AT+CFUN=1
+ 
+OK              AT+CGDCONT=1,"IP","web.colombiamovil.com.co","",0,0
+OK              ATD*99#
+TIMEOUT         22
+CONNECT         ""
