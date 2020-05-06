@@ -67,7 +67,7 @@ You may also need to do this on Ubuntu 16.10, 17.04, 17.10 but it is not necessa
 
 MIGOS uses a build tool called [pydo](https://github.com/ali1234/pydo) which has been developed specifically to handle complex builds that don't produce executables and libraries. You must first install it:
 
-    cd migos-balena/pydo && pip3 install .
+    cd migos-balena/pydo && sudo pip3 install .
 
 # BULID AND BOOTING MIGOS
 
@@ -121,13 +121,13 @@ The logset `BalenaMigration/eventLog` store the highlights of the migration proc
 
 All remote logs are in `json` format and have the following fields:
   
-  * device: ID of device.
+  * device: ID of the device.
   * script: name of the script.
   * function: name of the function.
   * line: Number of the line that generates the log entry.
   * uptime: Kernel timestamp
   * state: Result of the event. Can be `INI`, `END`, `INFO` `OK`, `ERROR`, `FAIL`, `SUCCESS`, `EXIT` or `CMDLOG`
-  * msg: Aditional info.
+  * msg: Additional info.
 
 Additionally a full detailed log is stored using the service of [filepush.sh](https://filepush.co/) the URL of this log can be found in the `BalenaMigration/eventLog` under the `logFilePush` function name.
 
@@ -141,16 +141,16 @@ ______________________
 |                    |  * Validate Partition geometry of MMC
 |  migDiagnostic.sh  |  * Validate Network connection and configuration
 |                    |  * Validate AdBeacons configurations
+|                    |  * Validate Files at bucket
 |____________________|  * Generate mig.config
           ||
 __________\/__________
 |                    |  * BackUp Raspbian Boot Partition
-|    migBackup.sh    |  * BackUp system configuration files
-|____________________|  * Make Net configuration files for MIGOS
-          ||
-__________\/__________
+|                    |  * BackUp system configuration files
+|                    |  * Make Net configuration files for MIGOS and Balena
+| migInstallMIGOS.sh |  * Download files from bucket
 |                    |  * Delete Boot files of Raspbian
-|    migLaunch.sh    |  * Download and install the last version of MIGOS
+|                    |  * Download and install the last version of MIGOS
 |____________________|  * Reboot the system to initiate the migration process (MIGOS)
 ```
 
@@ -171,7 +171,7 @@ Those scrips are executed automatically by the systemd services of MIGOS
                 ||              ||
 ________________\/___        ___\/_________________    ___________________________
 |                   |        |                    |    |                         |
-|   migFlashSD.sh   |   <==  |   migWatchDog.sh   | => |  migRestoreRaspBoot.sh  |
+|   migFlashSD.sh   |   <==  |  migSupervisor.sh  | => |  migRestoreRaspBoot.sh  |
 |___________________|        |____________________|    |_________________________|
 
 * FSM to download             * Test Network            * Validate and restore
@@ -185,11 +185,11 @@ ________________\/___        ___\/_________________    _________________________
 
 # MIGRATION PROCESS
 
-In theory all migration process is completly automatized, the only manual process is to execute the initiation scripts. 
+In theory all migration process is completely automatized, the only manual process is to execute the initiation scripts. 
 The `migPusher.sh` script was builds to send the command to execute remotely the manual scripts.
 Is necessary previusly know the `ID` of the device target to migrate.
 
-NOTE: The order of executions is very importan (see above).
+NOTE: The order of executions is very important (see above).
 
 There are two options to run this, the recommend option is using the CLI tool.
 
@@ -204,17 +204,16 @@ Example:
 
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
-./migPusher.sh api b8_27_eb_a0_a8_71 migBackup
-./migPusher.sh api b8_27_eb_a0_a8_71 migLaunch
+./migPusher.sh api b8_27_eb_a0_a8_71 migInstallMIGOS
 ```
 
 > The output of this script only say if the "pusher command" can be sent, to see the result of each script executed remotely is necessary see the log in the `insightOps` platform (see above)
 
 ## How to execute remotely via Pusher CLI
 
-First, is nessesary download and install the last version of **Pusher CLI**, the instruccions are [here](https://pusher.com/docs/channels/pusher_cli/overview)
+First, is necessary download and install the last version of **Pusher CLI**, the instructions are [here](https://pusher.com/docs/channels/pusher_cli/overview)
 
-If you want see the response of each pusher event sent, you can run `./migPusher.sh cli <Device ID> subscribe` in a parallel console.
+If you want to see the response of each pusher event sent, you can run `./migPusher.sh cli <Device ID> subscribe` in a parallel console.
 
 Example:
 
@@ -228,8 +227,7 @@ Example:
 
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
-./migPusher.sh api b8_27_eb_a0_a8_71 migBackup
-./migPusher.sh api b8_27_eb_a0_a8_71 migLaunch
+./migPusher.sh api b8_27_eb_a0_a8_71 migInstallMIGOS
 ``
 
 > The output of this script only say if the "pusher command" can be sent or fail, to see the result of each script executed remotely is necessary see the log on the `insightOps` platform (see above)
