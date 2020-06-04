@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -vf *md5
+#rm -vf *md5
 
 fileList=( \
 	'migInstallMIGOS.sh' \
