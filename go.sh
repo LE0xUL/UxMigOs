@@ -11,6 +11,6 @@ rm -vf start4* fixup4* start_db.elf && \
 touch "MIGOS_BOOT_INSTALLED" && \
 touch "MIGOS_${MIGOS_VERSION}" && \
 tar -czf ../${MIGOS_BALENA_FILENAME} --owner=root --group=root ./* && \
-cd .. && \
+cd .. 
 # scp ${MIGOS_BALENA_FILENAME} trecetp@10.0.0.21:/srv/http/balenaos/migboot-migos-balena.tgz && \
 # rsync -av packages/migscripts/files/* trecetp@10.0.0.21:/srv/http/balenaos/migscripts
