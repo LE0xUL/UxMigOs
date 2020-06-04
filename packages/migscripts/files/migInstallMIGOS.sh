@@ -446,7 +446,7 @@ function migDownFile {
     MIGDOWN_ATTEMPTNUM=0
     MIGDOWN_ATTEMPTMAX=2
 
-    logEvent "INFO" "Try to wget ${MIGDOWN_FILENAME}"
+    logEvent "INFO" "Downloading ${MIGDOWN_FILENAME}"
     
     until $(wget "${MIGDOWN_URL}/${MIGDOWN_FILENAME}" -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME} &>${MIGCOMMAND_LOG}); do
         if [ ${MIGDOWN_ATTEMPTNUM} -eq ${MIGDOWN_ATTEMPTMAX} ];then
@@ -584,7 +584,7 @@ function validateDiagnostic {
     [[ ${MIGTIMESTAMP_DIFFERENCE} -lt 0 ]] && \
     exitError "Futuristic MIG_DIAGNOSTIC_SUCCESS timestamp [${MIGTIMESTAMP_DIFFERENCE}]"
 
-    [[ ${MIGTIMESTAMP_DIFFERENCE} -gt 600 ]] && \
+    [[ ${MIGTIMESTAMP_DIFFERENCE} -gt 1200 ]] && \
     exitError "'Diagnostic' is too old. Please, run it again."
 
     logEvent "OK" "Valid MIG_DIAGNOSTIC_SUCCESS"
