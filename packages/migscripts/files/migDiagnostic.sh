@@ -28,8 +28,8 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='http://10.0.0.21/balenaos'
-# MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
+# MIGBUCKET_URL='http://10.0.0.21/balenaos'
+MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 
 MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
@@ -425,11 +425,11 @@ function checkNetworkStatus {
     logEvent "INI"
 
     if [[ 'UP' == "${MIGCONFIG_ETH_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then
-        if [[ 'UP' == "${MIGCONFIG_ETH_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]]; then
+        # if [[ 'UP' == "${MIGCONFIG_ETH_CONN}" ]] || [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]]; then
             logEvent "OK" "Valid connection detected"
-        else
-            exitError "3G connection is not supported in the migrate process"
-        fi
+        # else
+            # exitError "3G connection is not supported in the migrate process"
+        # fi
     else
         exitError "No network connection detected"
     fi
@@ -440,7 +440,8 @@ function checkNetworkStatus {
 function checkFilesAtBucket {
     logEvent "INI"
 
-    fileList=(  'appBalena.config.json' \
+    fileList=(  'jq_1.4-2.1+deb8u1_armhf.deb' \
+                'appBalena.config.json' \
                 'migboot-migos-balena.tgz' \
                 "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
                 'p2-resin-rootA.img.gz' \
