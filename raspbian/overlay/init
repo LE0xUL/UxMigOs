@@ -40,17 +40,6 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_FOUND
         echo "MIGOS | Init | OK | MIGSTATE BOOT Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
-        # rm -rf ${MIGSSTATEDIR_BOOT}/MIG_INIT* &>>${MIGSCRIPT_LOG}
-        # rsync -av ${MIGSSTATEDIR_ROOT} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-        # echo "MIGOS | Init | OK | ROOT -> BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} && \
-        # rsync -av ${MIGSSTATEDIR_BOOT} /root &>>${MIGSCRIPT_LOG} && \
-        # echo "MIGOS | Init | OK | BOOT -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} && \
-        # echo "MIGOS | Init | OK | MIGSTATE DIR UPDATED" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} && \
-
-        # cp -rv ${MIGSSTATEDIR_BOOT} /tmp &>>${MIGSCRIPT_LOG} && \
-        # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_CP2TMP_OK; echo "MIGOS | Init | OK | ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-        # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_CP2TMP_ERROR; echo "MIGOS | Init | ERROR | ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
-
         if [[ -f ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ]]; then
             echo "MIGOS | Init | OK | ${MIGCONFIG_FILE} Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
             cat ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} | tee -a /etc/environment &>>${MIGSCRIPT_LOG} && \
@@ -72,13 +61,6 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_NOT_FOUND
             echo "MIGOS | Init | FAIL | WPA CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
-
-        # if [[ -f ${MIGSSTATEDIR_BOOT}/wpa_supplicant.conf.bkp ]]; then
-        #     cp -v ${MIGSSTATEDIR_BOOT}/wpa_supplicant.conf.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG}
-        # else
-        #     touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_NOT_FOUND
-        #     echo "MIGOS | Init | FAIL | WPA CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
-        # fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/en.network ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/en.network ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
@@ -120,11 +102,6 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
         echo "MIGOS | Init | ERROR | MIGSTATE BOOT DIR NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_NOT_FOUND_ERROR
     fi
-
-    # [[ -f ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK ]] && \
-    # cp -rv ${MIGSSTATEDIR_ROOT} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    # echo "MIGOS | Init | OK | ROOT -> BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
-    # echo "MIGOS | Init | ERROR | ROOT -> BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
     [[ -f ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK ]] && \
     umount -v ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
