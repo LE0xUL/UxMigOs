@@ -84,6 +84,24 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
             echo "MIGOS | Init | FAIL | WLAN CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
+        if [[ -f ${MIGSSTATEDIR_BOOT}/carrierFile.bkp ]]; then
+            cp -v ${MIGSSTATEDIR_BOOT}/carrierFile.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_OK; echo "MIGOS | Init | OK | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_ERROR; echo "MIGOS | Init | ERROR | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+        else
+            touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_NOT_FOUND
+            echo "MIGOS | Init | FAIL | CARRIER FILE NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        fi
+
+        if [[ -f ${MIGSSTATEDIR_BOOT}/carrierSetup.sh.bkp ]]; then
+            cp -v ${MIGSSTATEDIR_BOOT}/carrierSetup.sh.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_OK; echo "MIGOS | Init | OK | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_ERROR; echo "MIGOS | Init | ERROR | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+        else
+            touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_NOT_FOUND
+            echo "MIGOS | Init | FAIL | CARRIER SETUP NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        fi
+
         # Update FSM Files
         cp -v ${MIGSSTATEDIR_BOOT}/MIG_FSM_* ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
         echo "MIGOS | Init | OK | FSM files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
