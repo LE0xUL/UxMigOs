@@ -11,9 +11,8 @@ APP_SECRET="48919b4f619b6dd8ca4b"
 APP_CLUSTER="us2"
 API_KEY='-aP8iW3jzXcNxoHIGFlrrVIsTOkQiK5Y3gopCYJhLCQ'
 
-MIGBUCKET_URL='http://10.0.0.21/balenaos'
-# MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
-MIGBUCKET_FILETEST='testbucketconnection.file'
+# MIGBUCKET_URL='http://10.0.0.21/balenaos'
+MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 
 # exec 3>&1 4>&2
 # trap 'exec 2>&4 1>&3' 0 1 2 3

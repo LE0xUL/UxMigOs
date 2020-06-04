@@ -14,8 +14,8 @@ MIGROOTFS_MOUNTDIR='/mnt/rootfs'
 MIG_RAMDISK='/mnt/migramdisk'
 MIGDOWNLOADS_DIR="${MIGROOTFS_MOUNTDIR}/root/migdownloads"
 
-MIGBUCKET_URL='http://10.0.0.21/balenaos'
-# MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
+# MIGBUCKET_URL='http://10.0.0.21/balenaos'
+MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 MIGBUCKET_ATTEMPTNUM=0
 MIGBUCKET_ATTEMPTMAX=5
