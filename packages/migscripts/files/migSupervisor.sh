@@ -55,6 +55,8 @@ fi
 source /root/migstate/mig.config || cmdFail "Fail source mig.config"
 source /usr/bin/migFunctions.sh || cmdFail "Fail source migFunctions.sh"
 
+[[ 'UP' == "${MIGCONFIG_3G_CONN}" ]] && do3GConnection
+
 testBucketConnection
 
 checkInit || cmdFail

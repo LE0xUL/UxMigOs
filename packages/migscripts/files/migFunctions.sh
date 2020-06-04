@@ -545,6 +545,19 @@ function checkConfigWPA {
     return 0
 }
 
+function do3GConnection {
+    logEvent "INI"
+
+    execCmmd "killall pppd" && \
+    execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
+    execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect /usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
+    logEvent "OK" "3G Connetion" || \
+    logEvent "FAIL" "3G Connetion"
+
+    logEvent "END"
+    return 0
+}
+
 function restoreNetworkConfig {
     logEvent "INI"
 
@@ -573,6 +586,7 @@ function restoreNetworkConfig {
     fi
 
     checkConfigWPA || return 1
+    do3GConnection || return 1
     # TODO: restart all network services
 
     logEvent "END"
