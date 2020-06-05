@@ -35,6 +35,9 @@ function cmdFail {
 #            MAIN            #
 ##############################
 
+# Wait to system init and network connect
+sleep 10
+
 mkdir -vp ${MIGSSTATE_DIR} || \
 {
     echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | ERROR to exec 'mkdir -vp ${MIGSSTATE_DIR}'" | \
