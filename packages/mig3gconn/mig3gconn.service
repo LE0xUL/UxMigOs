@@ -5,7 +5,7 @@ Wants=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f /root/migstate/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200
+ExecStart=/usr/bin/carrierConnect.sh
 
 [Install]
 WantedBy=multi-user.target
