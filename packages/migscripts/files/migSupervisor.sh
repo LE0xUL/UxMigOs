@@ -55,19 +55,17 @@ fi
 source /root/migstate/mig.config || cmdFail "Fail source mig.config"
 source /usr/bin/migFunctions.sh || cmdFail "Fail source migFunctions.sh"
 
-check3GConnection
-
 testBucketConnection
 
 checkInit || cmdFail
 checkRamdisk || cmdFail
 
-# [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] || \
-# {
-#     restoreNetworkConfig || cmdFail
-#     checkConfigWPA || cmdFail
-#     testBucketConnection || cmdFail "Fail Network Connection"
-# }
+[[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] || \
+{
+    restoreNetworkConfig || cmdFail
+    checkConfigWPA || cmdFail
+    testBucketConnection || cmdFail "Fail Network Connection"
+}
 
 # TODO: updateStateFSM para no descargar todas las imagenes
 checkRootFS || cmdFail

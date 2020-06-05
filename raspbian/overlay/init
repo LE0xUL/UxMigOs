@@ -128,14 +128,14 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
 
 
-    # Modem 3G Setup
-    echo 22 > /sys/class/gpio/unexport && \
-    echo 22 > /sys/class/gpio/export && \
-    echo out > /sys/class/gpio/gpio22/direction && \
-    echo 0 > /sys/class/gpio/gpio22/value && \
-    echo 1 > /sys/class/gpio/gpio22/value && \
-    sleep 1 && \
-    echo 0 > /sys/class/gpio/gpio22/value && \
+    echo "### Modem 3G Setup ###" &>>${MIGSCRIPT_LOG} && \
+    echo 22 > /sys/class/gpio/unexport &>>${MIGSCRIPT_LOG} && \
+    echo 22 > /sys/class/gpio/export &>>${MIGSCRIPT_LOG} && \
+    echo out > /sys/class/gpio/gpio22/direction &>>${MIGSCRIPT_LOG} && \
+    echo 0 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
+    echo 1 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
+    sleep 1 &>>${MIGSCRIPT_LOG} && \
+    echo 0 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
     echo "MIGOS | Init | OK | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
     echo "MIGOS | Init | ERROR | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
