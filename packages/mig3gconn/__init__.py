@@ -7,7 +7,7 @@ this_dir = pathlib.Path(__file__).parent
 package = {
     'requires': ['net'],
     'sysroot_debs': [],
-    'root_debs': ['ppp', 'psmisc'],
+    'root_debs': ['ppp'],
     'target': this_dir / 'mig3gconn.tar.gz',
     'install': ['{chroot} {stage} /bin/systemctl reenable mig3gconn.service'],
 }
@@ -22,6 +22,10 @@ def build():
 
         f'mkdir -p {stage}/etc/systemd/system',
         f'cp {service} {stage}/etc/systemd/system/',
+
+        f'mkdir -p {stage}/etc/ppp',
+        f'cp {this_dir}/ip-down {stage}/etc/ppp/',
+        f'cp {this_dir}/ip-up {stage}/etc/ppp/',
 
         f'tar -C {stage} -czf {package["target"]} .',
     ])
