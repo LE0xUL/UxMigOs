@@ -13,5 +13,5 @@ echo 0 > /sys/class/gpio/gpio26/value
 echo 1 > /sys/class/gpio/gpio22/value
 sleep 1
 echo 0 > /sys/class/gpio/gpio22/value
-
+sleep 6
 exit 0
