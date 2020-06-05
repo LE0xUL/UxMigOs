@@ -26,11 +26,15 @@ def build():
 	    f'chmod +x {scriptsdirfiles}/migFlashSD.sh',
 	    f'chmod +x {scriptsdirfiles}/migFunctions.sh',
 	    f'chmod +x {scriptsdirfiles}/migSupervisor.sh',
+	    f'chmod +x {scriptsdirfiles}/carrierConnect.sh',
+	    f'chmod +x {scriptsdirfiles}/carrierSetup.sh',
 
         f'cp {scriptsdirfiles}/nettool.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migFlashSD.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migFunctions.sh {stage}/usr/bin/',
         f'cp {scriptsdirfiles}/migSupervisor.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/carrierConnect.sh {stage}/usr/bin/',
+        f'cp {scriptsdirfiles}/carrierSetup.sh {stage}/usr/bin/',
 
         # f'cp {scriptsdirfiles}/migBackup.sh {stage}/usr/bin/',
         # f'cp {scriptsdirfiles}/migDiagnostic.sh {stage}/usr/bin/',
