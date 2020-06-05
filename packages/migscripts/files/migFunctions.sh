@@ -545,14 +545,22 @@ function checkConfigWPA {
     return 0
 }
 
-function do3GConnection {
+function check3GConnection {
     logEvent "INI"
+    
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then 
+        execCmmd "killall pppd" && \
+        logEvent "OK" "Kill pppd" || \
+        logEvent "FAIL" "Kill pppd"
 
-    execCmmd "killall pppd" && \
-    execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
-    execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect /usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
-    logEvent "OK" "3G Connetion" || \
-    logEvent "FAIL" "3G Connetion"
+        execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
+        execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
+        execCmmd "sleep 30" && \
+        logEvent "OK" "3G Connetion" || \
+        logEvent "FAIL" "3G Connetion"
+    else
+        logEvent "FAIL" "Not 3G configuration detected"
+    fi
 
     logEvent "END"
     return 0
@@ -586,7 +594,7 @@ function restoreNetworkConfig {
     fi
 
     checkConfigWPA || return 1
-    do3GConnection || return 1
+    check3GConnection || return 1
     # TODO: restart all network services
 
     logEvent "END"
