@@ -1,0 +1,11 @@
+[Unit]
+Description=3G connection service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f /root/migstate/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200
+
+[Install]
+WantedBy=multi-user.target

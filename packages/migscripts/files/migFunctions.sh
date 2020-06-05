@@ -547,20 +547,31 @@ function checkConfigWPA {
 
 function check3GConnection {
     logEvent "INI"
-    
-    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then 
-        execCmmd "killall pppd" && \
-        logEvent "OK" "Kill pppd" || \
-        logEvent "FAIL" "Kill pppd"
 
-        execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
-        execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
-        execCmmd "sleep 30" && \
-        logEvent "OK" "3G Connetion" || \
-        logEvent "FAIL" "3G Connetion"
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then 
+        execCmmd "systemctl restart mig3gconn" logSuccess && \
+        execCmmd "sleep 30" || \
+        { 
+            logEvent "ERROR" "Fail at 'restart mig3gconn'"
+            return 1
+        }
     else
         logEvent "FAIL" "Not 3G configuration detected"
     fi
+
+    # if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then 
+    #     execCmmd "killall pppd" && \
+    #     logEvent "OK" "Kill pppd" || \
+    #     logEvent "FAIL" "Kill pppd"
+
+    #     execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
+    #     execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
+    #     execCmmd "sleep 30" && \
+    #     logEvent "OK" "3G Connetion" || \
+    #     logEvent "FAIL" "3G Connetion"
+    # else
+    #     logEvent "FAIL" "Not 3G configuration detected"
+    # fi
 
     logEvent "END"
     return 0

@@ -125,7 +125,19 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
     umount -v ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     rm -vf ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG} && \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo "MIGOS | Init | OK | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } 
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+
+
+    # Modem 3G Setup
+    echo 22 > /sys/class/gpio/unexport && \
+    echo 22 > /sys/class/gpio/export && \
+    echo out > /sys/class/gpio/gpio22/direction && \
+    echo 0 > /sys/class/gpio/gpio22/value && \
+    echo 1 > /sys/class/gpio/gpio22/value && \
+    sleep 1 && \
+    echo 0 > /sys/class/gpio/gpio22/value && \
+    echo "MIGOS | Init | OK | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
+    echo "MIGOS | Init | ERROR | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
     # mkdir -vp ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     # mknod ${MIGROOTFS_DEVICE} b 179 2 &>>${MIGSCRIPT_LOG} && \

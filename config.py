@@ -1,3 +1,3 @@
 hostname = 'migos-balena'
-packages = ['net', 'migsupervisor', 'migscripts']
+packages = ['net', 'mig3gconn', 'migsupervisor', 'migscripts']
 kernels = ['kernel7']
