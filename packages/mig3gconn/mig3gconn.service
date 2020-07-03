@@ -4,8 +4,8 @@ After=network.target
 Wants=network.target
 
 [Service]
-Type=oneshot
-ExecStart=/usr/bin/carrierConnect.sh
+Type=simple
+ExecStart=/bin/bash /usr/bin/carrierConnect.sh
 
 [Install]
 WantedBy=multi-user.target
