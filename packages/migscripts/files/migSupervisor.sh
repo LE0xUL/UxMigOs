@@ -5,7 +5,6 @@ upSeconds="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 upMins=$((${upSeconds} / 60))
 MIGLOG_SCRIPTNAME=$(basename "$0")
 
-# MIGLOG_SCRIPTNAME="migrationService.sh"
 MIGSSTATE_DIR="/root/migstate"
 
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmdwatch.log"
@@ -35,14 +34,14 @@ function cmdFail {
 #            MAIN            #
 ##############################
 
-# Wait to system init and network connect
-sleep 10
-
 mkdir -vp ${MIGSSTATE_DIR} || \
 {
     echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | ERROR to exec 'mkdir -vp ${MIGSSTATE_DIR}'" | \
     tee /dev/kmsg
 }
+
+# Wait to system init and network connect
+sleep 30
 
 echo "" &>> ${MIGSCRIPT_LOG}
 echo "" &>> ${MIGSCRIPT_LOG}
@@ -63,17 +62,16 @@ testBucketConnection
 checkInit || cmdFail
 checkRamdisk || cmdFail
 
-[[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] || \
-{
+if [[ ! -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
     restoreNetworkConfig || cmdFail
     checkConfigWPA || cmdFail
     testBucketConnection || cmdFail "Fail Network Connection"
-}
+fi
 
 # TODO: updateStateFSM para no descargar todas las imagenes
 checkRootFS || cmdFail
 downloadBucketFilesInRamdisk || cmdFail
-checkDownFilesInRamdisk || cmdFail
+# checkDownFilesInRamdisk || cmdFail
 
 migFlashSD.sh || cmdFail
 
