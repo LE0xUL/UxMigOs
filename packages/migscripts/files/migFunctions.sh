@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.21/balenaos/migscripts/migFunctions.sh' | source
-# wget http://10.0.0.21/balenaos/migscripts/migFunctions.sh
-
 MIGSSTATE_DIR="/root/migstate"
 MIGSSTATE_BOOTDIR="/mnt/boot/migstate"
 
@@ -201,7 +198,6 @@ function migDownFile {
 
     logEvent "INFO" "Try to wget ${MIGDOWN_FILENAME}"
     
-    # until $(execCmmd "wget ${MIGDOWN_URL}/${MIGDOWN_FILENAME} -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME}" logSuccess); do
     until $(execCmmd "wget ${MIGDOWN_URL}/${MIGDOWN_FILENAME} -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME}"); do
         if [ ${MIGDOWN_ATTEMPTNUM} -eq ${MIGDOWN_ATTEMPTMAX} ];then
             logEvent "ERROR" "Can't download ${MIGDOWN_FILENAME}"
@@ -619,7 +615,6 @@ function restoreNetworkConfig {
 
     checkConfigWPA || return 1
     check3GConnection || return 1
-    # TODO: restart all network services
 
     logEvent "END"
     return 0

@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.21/balenaos/migscripts/migInstallMIGOS.sh' | bash
-# curl -s 'http://10.0.0.21/balenaos/migscripts/migInstallMIGOS.sh' | bash
-# wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh?ignoreCache=1' | bash
-# curl 'https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh?ignoreCache=1' --output migInstallMIGOS.sh
-
 MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 MIGDID="$(hostname)"
 
@@ -18,16 +13,12 @@ MIGDOWN_DIR="/root/migdownloads"
 
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migInstallMIGOS.log"
-# MIGSCRIPT_STATE='STATE'
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
-## Device ID
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGBOOT_DIR='/boot'
 MIGBKP_RASPBIANBOOT="/root/migboot-backup-raspbian.tgz"
 
-# TODO: MIGOS_VERSION="$(git describe)"
-# TODO: MIGOS_BALENA_FILENAME="migboot-migos-balena_${MIGOS_VERSION}.tgz"
 MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
 MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
 MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
@@ -45,7 +36,6 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-# MIGBUCKET_URL='http://10.0.0.21/balenaos'
 MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 
@@ -427,8 +417,6 @@ function backupSystemFiles {
 
     if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then
         backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/carrierFile'
-        # backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierConnect.sh'
-        # backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierSetup.sh'
     fi
 
     [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
@@ -523,8 +511,6 @@ function downFilesFromBucket {
                 exitError "Fail MD5 check of ${MIGDOWN_DIR}/${fileName} attempt ${MIGMD5_ATTEMPTNUM}"
             fi
         done
-
-        # logEvent "OK" "Success download of ${fileName}"
     done
 
     logEvent "END"
@@ -537,17 +523,11 @@ function downFilesFromBucket {
 # https://www.balena.io/docs/reference/OS/configuration/
 function makeBalenaConfigJson {
     logEvent "INI"
-    # PROVISIONING_TOKEN="e2c703f3-7986-4532-91a7-632a40429b61"
-    # APPLICATION_ID="FACEV2"
-    # DEVICE_ID="b827eb05ff86"
-    # DEVICE_ID="$(ip a show dev eth0 | grep "link/ether " | awk '{print $2}' | tr -d ':')"
 
     DEVICE_ID="$(cat /sys/class/net/eth0/address | tr -d ':')"
     [[ 0 -ne $? ]] && exitError "Can't set DEVICE_ID"
 
     if [[ -f ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} ]]; then
-        # "wifiSsid": "",
-        # "wifiKey": ""
         execCmmd "jq '.+ {\"hostname\": \"${DEVICE_ID}\"}' ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} > ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" && \
         logEvent "OK" "Created ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" || \
         exitError "Can't create ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}"

@@ -1,24 +1,15 @@
 #!/bin/bash
 
-# wget -O - 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | bash
-# wget -O - 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | sudo bash
-# curl -s 'http://10.0.0.21/balenaos/migscripts/migDiagnostic.sh' | bash
-# wget -O - 'https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh' | bash
-
 MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
-## Device ID
 MIGDID="$(hostname)"
 [[ 0 -ne $? ]] && { echo "[FAIL] Can't set MIGDID"; exit $LINENO; }
 
 MIGLOG_SCRIPTNAME="migDiagnostic.sh"
 # MIGLOG_SCRIPTNAME=$(basename "$0")
-# MIGLOG_SCRIPTNAME=${BASH_SOURCE[1]##*/}
 
-# MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATE_DIR="/root/migstate"
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
 MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migDiagnostic.log"
-# MIGSCRIPT_STATE='STATE'
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
@@ -28,7 +19,6 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-# MIGBUCKET_URL='http://10.0.0.21/balenaos'
 MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 
@@ -121,28 +111,9 @@ function validateOS {
     source '/etc/os-release' &>${MIGCOMMAND_LOG} || \
     exitError "FAIL source /etc/os-release" logCommand
 
-    # if [[ -f '/etc/os-release' ]]; then
-    #     source '/etc/os-release'
-    # else
-    #     MIGSCRIPT_STATE="FAIL"
-    #     logEvent "/etc/os-release missing"
-    #     >${MIGCOMMAND_LOG}
-    #     exitError
-    # fi    
-
     [[ 'raspbian' = ${ID} ]] && \
     logEvent "OK" "raspbian detected: ${PRETTY_NAME}" || 
     exitError "Wrong OS: ${ID} / ${PRETTY_NAME}"
-
-    # if [[ 'raspbian' = ${ID} ]]; then
-    #     MIGSCRIPT_STATE="OK"
-    #     logEvent "OK" "raspbian detected: ${PRETTY_NAME}"
-    # else
-    #     MIGSCRIPT_STATE="FAIL"
-    #     logEvent "Wrong OS: ${ID} / ${PRETTY_NAME}"
-    #     >${MIGCOMMAND_LOG}
-    #     exitError
-    # fi
 
     logEvent "END"
     return 0
@@ -161,22 +132,7 @@ function validateRPI {
         [[ 3 -eq ${MIG_RPI_VER} ]] && \
         logEvent "OK" "RaspberryPi 3 detected: ${MIG_RPI_MODEL}" || \
         exitError "Wrong RPI: ${MIG_RPI_MODEL}"
-
-        # if [[ 'RaspberryPi' == "${MIG_RPI_NAME}" ]] && [[ 3 -eq ${MIG_RPI_VER} ]]; then
-        #     MIGSCRIPT_STATE="OK"
-        #     logEvent "RaspberryPi 3 detected: ${MIG_RPI_MODEL}"
-        # else
-        #     MIGSCRIPT_STATE="FAIL"
-        #     logEvent "Wrong RPI: ${MIG_RPI_MODEL}"
-        #     >${MIGCOMMAND_LOG}
-        #     exitError
-        # fi
     else
-        # MIGSCRIPT_STATE="FAIL"
-        # logEvent "/proc/device-tree/model missing"
-        # >${MIGCOMMAND_LOG}
-        # exitError
-
         exitError "ERROR" "Missing /proc/device-tree/model"
     fi    
 
@@ -191,43 +147,14 @@ function validateBootPartition {
     logEvent "OK" "${MIGBOOT_DEV} detected" || \
     exitError "Missing ${MIGBOOT_DEV}"
 
-    # if [[ -b "${MIGBOOT_DEV}" ]]; then
-    #     MIGSCRIPT_STATE="OK"
-    #     logEvent "${MIGBOOT_DEV} detected"
-    # else
-    #     MIGSCRIPT_STATE="FAIL"
-    #     logEvent "${MIGBOOT_DEV} missing"
-    #     exitError
-    # fi
-
-    # MIGBOOT_MOUNT=$(mount | grep "${MIGBOOT_DEV}.on./boot")
     mount &>${MIGCOMMAND_LOG} && \
     cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} && \
     cat ${MIGCOMMAND_LOG} | grep "${MIGBOOT_DEV}.on./boot" &>>${MIGSCRIPT_LOG} || \
     exitError "Boot device do not mounted: ${MIGBOOT_DEV}" logCommand
-    # {
-        # MIGSCRIPT_STATE="FAIL";
-        # logEvent "Boot device do not mounted: ${MIGBOOT_DEV}";
-        # logCommand;
-        # exitError;
-    # }
-
-    # if [[ 0 -ne $? ]]; then
-    #     MIGSCRIPT_STATE="FAIL"
-    #     logEvent "Boot device do not mounted: ${MIGBOOT_DEV}"
-    #     mount &>${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG}
-    #     logCommand
-    #     exitError
-    # fi
-    
-    # fdisk -l ${MIGMMC} 2>&1 | tee ${MIGCOMMAND_LOG}
-    # fdisk -l ${MIGMMC} |& tee ${MIGCOMMAND_LOG}
-    # logCommand
 
     fdisk -l ${MIGMMC} &>${MIGCOMMAND_LOG} && \
     cat ${MIGCOMMAND_LOG} >> ${MIGSCRIPT_LOG} || \
     exitError "FAIL at exec fdisk -l" logCommand
-    # { logCommand; exitError; }
 
     MIGBOOT_DATA=$(fdisk -l ${MIGMMC} | grep ${MIGBOOT_DEV})
     MIGBOOT_START=$(echo ${MIGBOOT_DATA} | awk '{print $2}')
@@ -243,10 +170,6 @@ function validateBootPartition {
                 echo "MIGCONFIG_BOOTSIZE=40" >>${MIGCONFIG_FILE}
                 MIGCONFIG_BOOTSIZE=40
             else
-                # MIGSCRIPT_STATE="FAIL"
-                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                # >${MIGCOMMAND_LOG}
-                # exitError
                 exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
@@ -258,10 +181,6 @@ function validateBootPartition {
                 echo "MIGCONFIG_BOOTSIZE=60" >>${MIGCONFIG_FILE}
                 MIGCONFIG_BOOTSIZE=60
             else
-                # MIGSCRIPT_STATE="FAIL"
-                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                # >${MIGCOMMAND_LOG}
-                # exitError
                 exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
@@ -273,17 +192,10 @@ function validateBootPartition {
                 echo "MIGCONFIG_BOOTSIZE=256" >>${MIGCONFIG_FILE}
                 MIGCONFIG_BOOTSIZE=256
             else
-                # MIGSCRIPT_STATE="FAIL"
-                # logEvent "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
-                # >${MIGCOMMAND_LOG}
                 exitError "Logical sectors missmatch: ${MIGBOOT_START} : ${MIGBOOT_END} : ${MIGBOOT_SECTORS}"
             fi
             ;;
-
         *)
-            # MIGSCRIPT_STATE="FAIL"
-            # logEvent "${MIGBOOT_SIZE} not suported"
-            # >${MIGCOMMAND_LOG}
             exitError "${MIGBOOT_SIZE} not suported"
     esac
 
@@ -303,9 +215,6 @@ function validationNetwork {
             logEvent "OK" "DHCP detected"
         fi
     else
-        # MIGSCRIPT_STATE="FAIL"
-        # logEvent "Missing /etc/dhcpcd.conf"
-        # >${MIGCOMMAND_LOG}
         exitError "Missing /etc/dhcpcd.conf"
     fi
 
@@ -324,7 +233,6 @@ function validationNetwork {
         case ${interface:0:2} in
             # loop
             'lo')
-                # echo "loop"
                 ;;
             # Ethernet
             'et')
@@ -459,16 +367,6 @@ function checkFilesAtBucket {
         wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}" &>${MIGCOMMAND_LOG} && \
         logEvent "OK" "${fileName} found in the bucket server" || \
         exitError "ERROR to find ${fileName} in the bucket server" logCommand
-
-        # if [[ $? -ne 0 ]]; then
-        #     MIGSCRIPT_STATE="FAIL"
-        #     logEvent "${fileName} missing in the bucket"
-        #     logCommand
-        #     exitError
-        # else 
-        #     MIGSCRIPT_STATE="OK"
-        #     logEvent "${fileName} found in the bucket"
-        # fi        
     done
 
     for fileName in ${fileList[@]}
@@ -476,16 +374,6 @@ function checkFilesAtBucket {
         wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}.md5" &>${MIGCOMMAND_LOG} && \
         logEvent "OK" "${fileName}.md5 found in the bucket server" || \
         exitError "ERROR to find ${fileName}.md5 in the bucket server" logCommand
-
-        # if [[ $? -ne 0 ]]; then
-        #     MIGSCRIPT_STATE="FAIL"
-        #     logEvent "${fileName}.md5 missing in the bucket"
-        #     logCommand
-        #     exitError
-        # else 
-        #     MIGSCRIPT_STATE="OK"
-        #     logEvent "${fileName}.md5 found in the bucket"
-        # fi
     done
 
     logEvent "END"

@@ -1,23 +1,4 @@
 #!/bin/bash
-# TODO:
-# - Validate existense of MIGFILE_TOKENLIST ó usar pasar como argumento el nombre del archivo
-# - Validate Token
-# - Validate UUID
-# 
-# MIGSCRIPT_LOG
-
-# APPLICATION_ID
-# FACEV2
-
-# PROVISIONING_TOKEN
-# 1ef0d7d4-d859-4bcf-aba9-42c921883522
-
-# PROJECT_ID
-# admobilize-testing
-
-# DEVICE_ID
-# mac_add 70:88:6b:87:ea:b9
-# b8:27:eb:a0:a8:71 -> b827eba0a871
 
 MIGLOG_SCRIPTNAME=$(basename "$0")
 MIGSCRIPT_LOG="provider.log"
@@ -97,7 +78,6 @@ logEvent "INFO" "Watching for new migrated devices"
 echo ""
 while true
 do
-    # balena devices >${MIGFILE_DEVICESLIST}
     balena devices --application ${MIG_BALENA_APP_INIT} &>${MIGFILE_DEVICESLIST} || \
     {
         logEvent "INFO" "Try balena login first"
@@ -122,7 +102,6 @@ do
             MIGLIST_FIRSTLINE="$LINE"
             continue
         }
-        # echo ${MIGUUID_SHORT}
 
         MIGDID="${MIGUUID_SHORT}"
 
@@ -137,11 +116,9 @@ do
         >${MIGCOMMAND_LOG}
         MIGDEV_STATUS=$(cat ${MIGFILE_DEVICEINFO} | grep 'STATUS:' | awk '{print $2}')
         [[ 0 -ne $? ]] && { logEvent "FAIL" "GET device STATUS"; exit $LINENO; }
-        # [[ ${MIGDEV_STATUS} == 'idle' ]] && echo "IDLE"
 
         MIGDEV_ONLINE=$(cat ${MIGFILE_DEVICEINFO} | grep 'IS ONLINE:' | awk '{print $3}')
         [[ 0 -ne $? ]] && { logEvent "FAIL" "GET device ONLINE"; exit $LINENO; }
-        # [[ ${MIGDEV_ONLINE} == 'true' ]] && echo "${MIGUUID_SHORT} online" || echo "${MIGUUID_SHORT} offline" 
         [[ ${MIGDEV_ONLINE} == 'true' ]] || continue
 
         echo ""
@@ -227,49 +204,3 @@ do
 
     sleep 15
 done
-
-
-
-
-
-
-# balena devices -> list all devices
-# balena env add APPLICATION_ID FACEV2 --device b5657f54c3db44c393e615be9fbd53cf --service admprovider
-# balena device move b5657f54c3db44c393e615be9fbd53cf --application admobilize-vision-rpi3-nettest
-# cat /home/trecetp/Downloads/BalenaMigration.config.json | jq '.+ {"hostname": "adb145432"}'
- 
-# curl -X POST --header "Content-Type:application/json" \
-# --header "Authorization: Bearer ErR56DEPe87jpjKaTg8JDPMORRD8F44A" \
-# --data '{"uuid":"7132052890c52f837ed69f24069ab8db", "method": "GET"}' \
-# "https://api.balena-cloud.com/supervisor/v1/device/host-config"
-# | jq '.hostame'
-
-# curl -X POST --header "Content-Type:application/json" --header "Authorization: Bearer ErR56DEPe87jpjKaTg8JDPMORRD8F44A" --data '{"uuid":"b5657f54c3db44c393e615be9fbd53cf", "method": "GET"}' "https://api.balena-cloud.com/supervisor/v1/device/host-config" | jq '.network.hostname' | tr -d '"'
-
-# curl -X POST --header "Content-Type:application/json" \
-# --header "Authorization: Bearer ErR56DEPe87jpjKaTg8JDPMORRD8F44A" \
-# --data '{"uuid":"b5657f54c3db44c393e615be9fbd53cf", "method": "GET"}' \
-# "https://api.balena-cloud.com/supervisor/v1/device/host-config"
-
-# curl -X POST --header "Content-Type:application/json" \
-# --header "Authorization: Bearer ErR56DEPe87jpjKaTg8JDPMORRD8F44A" \
-# --data '{"uuid":"b5657f54c3db44c393e615be9fbd53cf", "method": "GET"}' \
-# "https://api.balena-cloud.com/supervisor/v1/device/host-config" | \
-# jq '.network.hostname' | tr -d '"'
-
-# balena env add APPLICATION_ID FACEV2 --device b5657f54c3db44c393e615be9fbd53cf --service admprovider
-# balena env add PROJECT_ID admobilize-testing --device b5657f54c3db44c393e615be9fbd53cf --service admprovider
-# balena env add DEVICE_ID admobilize-testing --device b5657f54c3db44c393e615be9fbd53cf --service admprovider
-
-# balena env add APPLICATION_ID FACEV2 --device b5657f54c3db44c393e615be9fbd53cf
-# balena env add PROJECT_ID admobilize-testing --device b5657f54c3db44c393e615be9fbd53cf
-# balena env add DEVICE_ID b827eba0a871 --device b5657f54c3db44c393e615be9fbd53cf
-# balena env add PROVISIONING_TOKEN c76f8c9f12504f22814f479c9a77442c --device b5657f54c3db44c393e615be9fbd53cf
-# balena device move b5657f54c3db44c393e615be9fbd53cf --application testMigration
-# b5657f54c3db44c393e615be9fbd53cf
-
-
-# curl -i \
-# -H "Accept: application/json" \
-# -X POST -d '{"message":"sending logs to InsightOps", "success":true}' \
-# https://eu.webhook.logs.insight.rapid7.com/v1/noformat/859e69f9-0700-450f-b673-bbbba059bb64

@@ -11,11 +11,8 @@ MIGSSTATEDIR_ROOT='/root/migstate'
 MIGSSTATEDIR_BOOT='/mnt/boot/migstate'
 MIGBOOT_MOUNTDIR='/mnt/boot'
 MIGBOOT_DEVICE='/dev/mmcblk0p1'
-# MIGROOTFS_DEVICE='/dev/mmcblk0p2'
-# MIGROOTFS_MOUNTDIR='/mnt/rootfs'
 MIGSCRIPT_LOG="${MIGSSTATEDIR_ROOT}/init.log"
 MIG_RAMDISK='/mnt/migramdisk'
-# MIGBKP_RASPBIANBOOT="migboot-backup-raspbian.tgz"
 MIGCONFIG_FILE="mig.config"
 
 mkdir -vp ${MIGSSTATEDIR_ROOT} &>>/tmp/init.tmp.log
@@ -126,50 +123,6 @@ if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
     rm -vf ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG} && \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo "MIGOS | Init | OK | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
-
-
-    # echo "### Modem 3G Setup ###" &>>${MIGSCRIPT_LOG}
-    # echo 22 > /sys/class/gpio/unexport &>>${MIGSCRIPT_LOG}
-    # echo 26 > /sys/class/gpio/unexport &>>${MIGSCRIPT_LOG}
-
-    # echo 22 > /sys/class/gpio/export &>>${MIGSCRIPT_LOG} && \
-    # echo 26 > /sys/class/gpio/export &>>${MIGSCRIPT_LOG} && \
-    # echo out > /sys/class/gpio/gpio22/direction &>>${MIGSCRIPT_LOG} && \
-    # echo out > /sys/class/gpio/gpio26/direction &>>${MIGSCRIPT_LOG} && \
-    # echo 0 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
-    # echo 1 > /sys/class/gpio/gpio26/value &>>${MIGSCRIPT_LOG} && \
-    # sleep 0.2 &>>${MIGSCRIPT_LOG} && \
-    # echo 0 > /sys/class/gpio/gpio26/value &>>${MIGSCRIPT_LOG} && \
-    # echo 1 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
-    # sleep 1 &>>${MIGSCRIPT_LOG} && \
-    # echo 0 > /sys/class/gpio/gpio22/value &>>${MIGSCRIPT_LOG} && \
-    # echo "MIGOS | Init | OK | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
-    # echo "MIGOS | Init | ERROR | Modem 3G Setup" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
-
-    # mkdir -vp ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    # mknod ${MIGROOTFS_DEVICE} b 179 2 &>>${MIGSCRIPT_LOG} && \
-    # mount -vo ro ${MIGROOTFS_DEVICE} ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_OK; echo "MIGOS | Init | OK | MOUNT ROOTFS" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
-    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_ERROR; echo "MIGOS | Init | ERROR | MOUNT ROOTFS" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
-
-    # if [[ -f ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} ]]; then
-        
-    #     #TEMP
-    #     ls -alh ${MIGROOTFS_MOUNTDIR}/ &>>${MIGCOMMAND_LOG}
-
-    #     cp -v ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} /root &>>${MIGCOMMAND_LOG} && \
-    #     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_OK; echo "MIGOS | Init | OK | CP BKP RASPBIAN BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
-    #     { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CP_BKP_RASPBIAN_BOOT_ERROR; echo "MIGOS | Init | ERROR | CP BKP RASPBIAN BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
-    # else
-    #     echo "MIGOS | Init | FAIL | ${MIGBKP_RASPBIANBOOT} NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
-    #     touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_BKP_RASPBIAN_BOOT_NOT_FOUND_FAIL
-    # fi
-
-    # [[ -f ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_ROOTFS_OK ]] && \
-    # umount -v ${MIGROOTFS_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    # rm -v ${MIGROOTFS_DEVICE} &>>${MIGSCRIPT_LOG} && \
-    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_ROOTFS_OK; echo "MIGOS | Init | OK | UMOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }  || \
-    # { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_ROOTFS_ERROR; echo "MIGOS | Init | ERROR | UMOUNT ROOTFS" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg; }
 
 else
     echo "MIGOS | Init | FAIL | misssing ${MIGSSTATEDIR_ROOT}" &> /dev/kmsg

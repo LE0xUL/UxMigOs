@@ -1,5 +1,4 @@
 #!/bin/bash
-# # curl -s http://server/path/script.sh | bash -s arg1 arg2
 
 upSeconds="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 upMins=$((${upSeconds} / 60))

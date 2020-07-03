@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# TODO
-# - weblogs events to logentries
-# - send logfile to transfer and weblog
-
 MIGSCRIPT_LOG="pusher.log"
 APP_ID="367382"
 APP_KEY="8142387dbc68b5841187"
@@ -14,18 +10,11 @@ API_KEY='-aP8iW3jzXcNxoHIGFlrrVIsTOkQiK5Y3gopCYJhLCQ'
 # MIGBUCKET_URL='http://10.0.0.21/balenaos'
 MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 
-# exec 3>&1 4>&2
-# trap 'exec 2>&4 1>&3' 0 1 2 3
-# exec 1>pusher2.log 2>&1
-
-# set -x
-
 date &>${MIGSCRIPT_LOG}
 
 function PrintHelp {
     echo ""
     echo "Usage: ./migPusher.sh <tool> <Device ID> [event | scriptName]"
-    # echo "usage: ./migPusher.sh [api | cli] <Device ID> [event | scriptName]"
     echo ""
     echo "Always is necessary all three paramateres"
     echo ""
@@ -67,18 +56,6 @@ if [[ "$2" =~ ^([a-f0-9]{2}_){5}[a-f0-9]{2}$ ]]; then
 else
     exitError "Invalid Device ID"
 fi
-
-# if [[ $3 = "migDiagnostic" ]] || [[ $3 = "migInstallMIGOS" ]] || [[ $3 = "migRestoreRaspbBoot" ]]; then
-#     echo "Valid Script name" &>>${MIGSCRIPT_LOG}
-#     MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/$2.sh | bash"
-# elif [[ $1 = "cli" ]] && [[ $3 = "subscribe" ]]; then
-#     echo "Valid event" &>>${MIGSCRIPT_LOG}
-# else
-#     exitError "Invalid event or scriptName"
-#     echo ${ERRORMSG} &>>${MIGSCRIPT_LOG}
-#     PrintHelp
-#     exit $LINENO
-# fi
 
 case $1 in
     'api')
@@ -141,8 +118,6 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
         if [[ 127 -eq ${result} ]]; then
             exitError "The pusher command can't be found"
         elif [[ 0 -ne ${result} ]]; then
-            # echo "ERROR: Run 'pusher login' first." |& tee -a ${MIGSCRIPT_LOG}
-            # exit $LINENO
             echo "Try login to pusher" &>> ${MIGSCRIPT_LOG}
             ( echo ${API_KEY} ) | pusher login &>> ${MIGSCRIPT_LOG}
             if [[ 0 -ne $? ]]; then
@@ -187,19 +162,6 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
 esac
 
 exit 0
-# case $2 in
-#     'migDiagnostic')
-#         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh | bash"
-#         ;;
-    
-#     'migInstallMIGOS')
-#         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh | bash"
-#         ;;
-
-#     'migRestoreRaspbBoot')
-#         MIGCMD="wget -O - https://storage.googleapis.com/balenamigration/migscripts/migRestoreRaspbBoot.sh | bash"
-#         ;;
-# esac
 
 # curl -iH 'Content-Type: application/json' -d "${data}" -X POST \
 # "https://api-${APP_CLUSTER}.pusher.com${path}?"\
@@ -222,3 +184,9 @@ exit 0
 # "auth_signature=479810b50ba68f876c051e20783d34acd549c0b67f55570f650b0dba012189cc&"
 
 # https://dashboard.pusher.com/apps/367382/getting_started
+
+# "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh -O migDiagnostic.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && md5sum --check migDiagnostic.sh.md5 && bash migDiagnostic.sh"
+# "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && md5sum --check migInstallMIGOS.sh.md5 && bash migInstallMIGOS.sh"
+
+# wget -O - 'http://10.0.0.21/balenaos/migscripts/migFunctions.sh' | source
+# curl -s http://server/path/script.sh | bash -s arg1 arg2
