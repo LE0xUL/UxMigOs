@@ -43,8 +43,8 @@ packages=findutils grep gzip init libc-bin login mount sed tar util-linux cpio
 
 # Optional base debs
 packages=systemd udev kmod gpgv procps
-packages=wget curl rsync vim psmisc iputils-ping
-packages=apt
+# packages=wget curl rsync vim psmisc iputils-ping
+# packages=apt
 # packages=tzdata
 
 # Debs required by /opt packages
