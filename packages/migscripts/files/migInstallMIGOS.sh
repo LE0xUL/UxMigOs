@@ -424,9 +424,12 @@ function backupSystemFiles {
     backupFile '/etc/hostname'
     backupFile '/usr/local/share/admobilize-adbeacon-software/config/json/device.json'
     backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/status'
-    backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/carrierFile'
-    backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierConnect.sh'
-    backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierSetup.sh'
+
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then
+        backupFile '/usr/local/share/admobilize-adbeacon-software/public/files/carrierFile'
+        # backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierConnect.sh'
+        # backupFile '/usr/local/share/admobilize-adbeacon-software/daemon/carrierSetup.sh'
+    fi
 
     [[ 'UP' == "${MIGCONFIG_WLAN_CONN}" ]] && \
     backupFile '/etc/wpa_supplicant/wpa_supplicant.conf'
@@ -477,6 +480,9 @@ function downFilesFromBucket {
         'p5-resin-state.img.gz' \
         'p6-resin-data.img.gz' \
         "${MIGFILE_JQ_PACKAGE}" \
+        'config3G.txt' \
+        'cmdline3G.txt' \        
+        'appBalena3G.config.json' \
     )
 
     execCmmd "mkdir -vp ${MIGDOWN_DIR}" logSuccess || \

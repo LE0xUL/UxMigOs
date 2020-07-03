@@ -440,8 +440,7 @@ function checkNetworkStatus {
 function checkFilesAtBucket {
     logEvent "INI"
 
-    fileList=(  'jq_1.4-2.1+deb8u1_armhf.deb' \
-                'appBalena.config.json' \
+    fileList=(  'appBalena.config.json' \
                 'migboot-migos-balena.tgz' \
                 "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
                 'p2-resin-rootA.img.gz' \
@@ -449,6 +448,10 @@ function checkFilesAtBucket {
                 'p5-resin-state.img.gz' \
                 'p6-resin-data.img.gz' \
                 "resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk" \
+                'jq_1.4-2.1+deb8u1_armhf.deb' \
+                'config3G.txt' \
+                'cmdline3G.txt' \
+                'appBalena3G.config.json' \
                 )
 
     for fileName in ${fileList[@]}

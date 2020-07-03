@@ -44,6 +44,10 @@ MIG_FILE_LIST_BUCKET=( \
     ${MIG_FILE_RESIN_ROOTB} \
     ${MIG_FILE_RESIN_STATE} \
     ${MIG_FILE_RESIN_DATA} \
+    'config3G.txt' \
+    'cmdline3G.txt' \
+    'appBalena3G.config.json' \
+    'appBalena.config.json' \
 )
 
 
@@ -165,6 +169,8 @@ function testBucketConnection {
 
     [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR ]] && rm -fv ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR &>>${MIGSCRIPT_LOG}
     [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] && rm -fv ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK &>>${MIGSCRIPT_LOG}
+
+    execCmmd 'cat /etc/resolv.conf | grep "8.8.8.8" || echo "nameserver 8.8.8.8" >> /etc/resolv.conf' logCommand
 
 	until $(execCmmd "wget -q --tries=10 --timeout=10 --spider ${MIGBUCKET_URL}/${MIGBUCKET_FILETEST}" logSuccess); do
 		if [ ${MIGBUCKET_ATTEMPTNUM} -eq ${MIGBUCKET_ATTEMPTMAX} ];then
@@ -397,6 +403,27 @@ function migrationFSM {
             else
                 logEvent "INFO" "missing resin-ethernet"
             fi
+
+            if [[ -f ${MIGSSTATE_DIR}/resin-3g ]]; then
+                execCmmd "mkdir -vp ${MIGBOOT_MOUNTDIR}/system-connections" logSuccess && \
+                execCmmd "cp -v ${MIGSSTATE_DIR}/resin-3g ${MIGBOOT_MOUNTDIR}/system-connections/" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+
+                execCmmd "cp -v /usr/bin/carrierSetup.sh ${MIGBOOT_MOUNTDIR}/toggleModem.sh" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+
+                execCmmd "cp -fv ${MIG_RAMDISK}/cmdline3G.txt ${MIGBOOT_MOUNTDIR}/cmdline.txt" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+
+                execCmmd "cp -fv ${MIG_RAMDISK}/config3G.txt ${MIGBOOT_MOUNTDIR}/config.txt" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+
+                execCmmd "cp -fv ${MIG_RAMDISK}/appBalena3G.config.json ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+
+            else
+                logEvent "INFO" "missing resin-3g"
+            fi
             
             touch ${MIGSSTATE_DIR}/MIG_FSM_CONFIG_OK 
             logEvent "OK" "CONFIG -> ${MIGBOOT_DEVICE}"
@@ -507,7 +534,7 @@ function checkRamdisk {
     # check if RAMDISK was created
     if [[ -f ${MIGSSTATE_DIR}/MIG_INIT_RAMDISK_OK ]]; then
         execCmmd "touch ${MIGSSTATE_DIR}/MIG_RAMDISK_OK"
-        LogEvent "OK" "${MIG_RAMDISK} was successfully created";
+        LogEvent "OK" "${MIG_RAMDISK} was successfully created"
     else
         createRamdisk || \
         {
@@ -558,20 +585,6 @@ function check3GConnection {
     else
         logEvent "FAIL" "Not 3G configuration detected"
     fi
-
-    # if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then 
-    #     execCmmd "killall pppd" && \
-    #     logEvent "OK" "Kill pppd" || \
-    #     logEvent "FAIL" "Kill pppd"
-
-    #     execCmmd "bash ${MIGSSTATE_DIR}/carrierSetup.sh.bkp" && \
-    #     execCmmd "/usr/sbin/pppd defaultroute usepeerdns debug connect '/usr/sbin/chat -V -f ${MIGSSTATE_DIR}/carrierFile.bkp' noauth /dev/ttyAMA0 nodetach 115200 &" logSuccess && \
-    #     execCmmd "sleep 30" && \
-    #     logEvent "OK" "3G Connetion" || \
-    #     logEvent "FAIL" "3G Connetion"
-    # else
-    #     logEvent "FAIL" "Not 3G configuration detected"
-    # fi
 
     logEvent "END"
     return 0
