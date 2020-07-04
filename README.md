@@ -69,6 +69,10 @@ MIGOS uses a build tool called [pydo](https://github.com/ali1234/pydo) which has
 
     cd migos-balena/pydo && sudo pip3 install .
 
+## Docker
+
+If have a docker in your system, you can run `./docker-build` to have a complete ecosystem to build the MIGOS
+
 # BULID AND BOOTING MIGOS
 
 ## Configure MIGOS
@@ -83,7 +87,6 @@ In the file 'config.py' you can define:
 
 First, initialize the project:
 
-    cd migos-balena/
     pydo --init
 
 To build the whole project run:
@@ -167,9 +170,11 @@ Those scrips are executed automatically by the systemd services of MIGOS
                |                  |  * Validate migstate dir
                |      /init       |  * Create Ramdisk
                |                  |  * Config network connection
-               |__________________|  * Copy RaspbianBootBackup
-                ||              ||
-________________\/___        ___\/_________________    ___________________________
+               |                  |  * Update FSM Files
+               |                  |  * Update resin Files
+               |__________________|  * Update config.json
+                                ||
+_____________________        ___\/_________________    ___________________________
 |                   |        |                    |    |                         |
 |   migFlashSD.sh   |   <==  |  migSupervisor.sh  | => |  migRestoreRaspBoot.sh  |
 |___________________|        |____________________|    |_________________________|
@@ -180,7 +185,6 @@ ________________\/___        ___\/_________________    _________________________
   BalenaOS                    * reboot system
 
 ```
-
 
 
 # MIGRATION PROCESS
