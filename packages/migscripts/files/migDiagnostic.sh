@@ -79,7 +79,7 @@ function logEvent {
 }
 
 function logFilePush {
-    MIGLOG_FILEPUSH_URLLOG=$(curl --upload-file "${MIGSCRIPT_LOG}" https://filepush.co/upload/)
+    MIGLOG_FILEPUSH_URLLOG=$(curl -k --upload-file "${MIGSCRIPT_LOG}" https://filepush.co/upload/)
     logEvent "INFO" "${MIGLOG_FILEPUSH_URLLOG}"
     echo "${MIGLOG_FILEPUSH_URLLOG}"
 }
