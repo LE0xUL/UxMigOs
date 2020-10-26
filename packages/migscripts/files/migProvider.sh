@@ -144,11 +144,9 @@ do
         # https://www.balena.io/docs/reference/supervisor/supervisor-api/#patch-v1devicehost-config
         # https://www.balena.io/docs/reference/api/resources/device/
         logEvent "INFO" ">>> Fetch DEVICE ID"
-        MIGDEV_DEVICEID=$(curl -sS -X POST --header "Content-Type:application/json" \
-                        --header "Authorization: Bearer ${MIGTOKEN_BALENACLOUD}" \
-                        --data '{"uuid":"'"${MIGDEV_UUID}"'", "method": "GET"}' \
-                        "https://api.balena-cloud.com/supervisor/v1/device/host-config" | \
-                        jq '.network.hostname' | tr -d '"')
+
+        MIGDEV_DEVICEID=$(echo "hostname; exit;" | balena ssh ${MIGDEV_UUID} | grep b827)
+
         [[ 0 -ne $? ]] && { logEvent "FAIL" "fetch DEVICE ID: ${MIGDEV_DEVICEID}"; exit $LINENO; }
 
         if [[ -z ${MIGDEV_DEVICEID} ]] || [[ "null" == ${MIGDEV_DEVICEID} ]]; then
