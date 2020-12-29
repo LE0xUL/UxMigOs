@@ -1,7 +1,7 @@
-#dtoverlay=pi3-disable-bt
+#dtoverlay=disable-bt
 dtparam=i2c_arm=on
 dtparam=spi=on
-dtoverlay=pi3-miniuart-bt
+#dtoverlay=pi3-miniuart-bt
 enable_uart=1
 
 # RTC
@@ -15,11 +15,5 @@ dtoverlay=dwc2
 
 gpu_mem=64
 
-gpio=5=ip,pu
-
-[gpio5=0]
-start_file=msd.elf
-
-[gpio5=1]
 start_x=1
 initramfs initrd
