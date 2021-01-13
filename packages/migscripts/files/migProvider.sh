@@ -5,7 +5,7 @@ MIGSCRIPT_LOG="provider.log"
 MIGCOMMAND_LOG="cmdprovider.log"
 MIGDID=""
 
-MIGTOKEN_BALENACLOUD="ErR56DEPe87jpjKaTg8JDPMORRD8F44A"
+MIGTOKEN_BALENACLOUD="eho6t0qUolELUTcQrDejU9H1K6jdmI0f"
 MIGFILE_DEVICESLIST="devlist.txt"
 MIGFILE_DEVICEINFO="devinfo.txt"
 MIGFILE_TOKENLIST="devices_migrated.csv"
@@ -59,7 +59,7 @@ if [[ 0 -ne $? ]]; then
     logEvent "FAIL" "BalenaCLI not found. Install it first"
     exit $LINENO
 else
-    logEvent "OK"
+    logEvent "OK"  "$(cat ${MIGCOMMAND_LOG})"
 fi
 echo ""
 
@@ -70,11 +70,20 @@ if [[ 0 -ne $? ]]; then
     logEvent "FAIL" "jq not found. Install it first"
     exit $LINENO
 else
+    logEvent "OK" "$(cat ${MIGCOMMAND_LOG})"
+fi
+echo ""
+
+logEvent "INFO" ">>> Detect ${MIGFILE_TOKENLIST}"
+if [[ ! -f ${MIGFILE_TOKENLIST} ]]; then
+    logEvent "FAIL" "${MIGFILE_TOKENLIST} not found."
+    exit $LINENO
+else
     logEvent "OK"
 fi
 echo ""
 
-logEvent "INFO" "Watching for new migrated devices"
+logEvent "INFO" "Watching for new migrated devices in ${MIG_BALENA_APP_INIT}"
 echo ""
 while true
 do
@@ -165,7 +174,6 @@ do
         echo ""
 
         logEvent "INFO" ">>> Fetch PROVISIONING TOKEN"
-        # MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{print $2}')
         MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{split($0,a,","); print a[6]}')
         [[ 0 -ne $? ]] && { logEvent "FAIL" "Fetch PROVISIONING TOKEN: ${MIGDEV_PROVISIONING_TOKEN}"; exit $LINENO; }
 
@@ -177,7 +185,16 @@ do
         logEvent "OK" "${MIGDEV_PROVISIONING_TOKEN}"
         echo ""
 
-        # TODO: https://www.balena.io/docs/reference/api/resources/device/#rename-device
+        logEvent "INFO" ">>> Rename Device"
+        MIGDEV_DEVICE_NAME=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{split($0,a,","); print a[7]}')
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "Can't get Device name for ${MIGDEV_DEVICEID}"; exit $LINENO; }
+        if [[ -z ${MIGDEV_DEVICE_NAME} ]]; then
+            logEvent "FAIL" "Null DEVICE NAME"
+            exit $LINENO
+        fi
+        balena device rename ${MIGDEV_UUID} ${MIGDEV_DEVICE_NAME} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "${MIGDEV_DEVICE_NAME}" || { logEvent "FAIL" "Rename device ${MIGDEV_DEVICE_NAME}"; exit $LINENO; }
+        echo ""
 
         # https://www.balena.io/docs/reference/balena-cli/#envs
         # https://www.balena.io/docs/reference/api/resources/device_environment_variable/
