@@ -61,7 +61,17 @@ For **both** process is necessary:
 
 ## Migration phase 1
 
-### Automated way
+### Automated (new way)
+
+* Download the script `migPusher.sh` from: https://storage.cloud.google.com/balenamigration/migscripts/migPusher.sh
+
+* Open one terminal, inside the directory where the previous script was downloaded an run the `migrate` event with the `device ID` to migrate, like this:
+
+  ```./migPusher.sh cli b8_27_eb_a0_a8_71 migrate```
+
+  In the dashboard of `insightOps` you can view the logs of the entire process.
+
+### Semi-Automated (old way)
 
 * Download the script `migPusher.sh` from: https://storage.cloud.google.com/balenamigration/migscripts/migPusher.sh
 
