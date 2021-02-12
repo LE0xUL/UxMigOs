@@ -218,10 +218,13 @@ do
         # https://www.balena.io/docs/reference/api/resources/device_environment_variable/
         logEvent "INFO" ">>> Set var in device"
         balena env add APPLICATION_ID ${MIGVAR_APPLICATION_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "APPLICATION_ID ${MIGVAR_APPLICATION_ID}" && \
         balena env add PROJECT_ID ${MIGVAR_PROJECT_ID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "PROJECT_ID ${MIGVAR_PROJECT_ID}" && \
         balena env add DEVICE_ID ${MIGDEV_DEVICEID} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
+        logEvent "OK" "DEVICE_ID ${MIGDEV_DEVICEID}" && \
         balena env add PROVISIONING_TOKEN ${MIGDEV_PROVISIONING_TOKEN} --device ${MIGDEV_UUID} &>${MIGCOMMAND_LOG} && \
-        logEvent "OK" || { logEvent "FAIL" "ADD device var"; exit $LINENO; }
+        logEvent "OK" "PROVISIONING_TOKEN ${MIGDEV_PROVISIONING_TOKEN}" || { logEvent "FAIL" "ADD device var"; exit $LINENO; }
         echo ""
 
         sleep 3
@@ -229,6 +232,7 @@ do
         logEvent "INFO" ">>> Moving device to ${MIG_BALENA_APP_PROD}..."
         balena device move ${MIGDEV_UUID} --application ${MIG_BALENA_APP_PROD} &>${MIGCOMMAND_LOG} && \
         logEvent "OK" || { logEvent "FAIL" "move device to ${MIG_BALENA_APP_PROD}"; exit $LINENO; }
+        echo ""
         logEvent "INFO" "DEVID: ${MIGDEV_DEVICEID} successfully provisioning"
         echo ""
         logEvent "INFO" ">>> Watching for new migrated devices"
