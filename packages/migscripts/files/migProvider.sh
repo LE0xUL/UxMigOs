@@ -193,11 +193,11 @@ do
 
         logEvent "INFO" ">>> Fetch PROVISIONING TOKEN"
         MIGDEV_PROVISIONING_TOKEN=$(cat ${MIGFILE_TOKENLIST} | grep ${MIGDEV_DEVICEID} | awk '{split($0,a,","); print a[6]}')
-        [[ 0 -ne $? ]] && { logEvent "FAIL" "Fetch PROVISIONING TOKEN: ${MIGDEV_PROVISIONING_TOKEN}"; exit $LINENO; }
+        [[ 0 -ne $? ]] && { logEvent "FAIL" "Fetch PROVISIONING TOKEN: ${MIGDEV_PROVISIONING_TOKEN}"; continue; }
 
         if [[ -z ${MIGDEV_PROVISIONING_TOKEN} ]]; then
             logEvent "FAIL" "Null PROVISIONING_TOKEN"
-            exit $LINENO
+            continue
         fi
         # TODO: validate MIGDEV_PROVISIONING_TOKEN
         logEvent "OK" "${MIGDEV_PROVISIONING_TOKEN}"
