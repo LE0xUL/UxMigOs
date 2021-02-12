@@ -152,25 +152,43 @@ do
 
         # https://www.balena.io/docs/reference/supervisor/supervisor-api/#patch-v1devicehost-config
         # https://www.balena.io/docs/reference/api/resources/device/
-        logEvent "INFO" ">>> Fetch DEVICE ID"
 
-        MIGDEV_DEVICEID=$(echo "hostname; exit;" | balena ssh ${MIGDEV_UUID} | grep b827)
+        ATTEMPT_DEVICEID=1
 
-        [[ 0 -ne $? ]] && { logEvent "FAIL" "fetch DEVICE ID: ${MIGDEV_DEVICEID}"; exit $LINENO; }
+        while [[ $ATTEMPT_DEVICEID -le 3 ]]
+        do
+            case $ATTEMPT_DEVICEID in
+                1)
+                    logEvent "INFO" ">>> Fetch DEVICE ID with curl"
+                    MIGDEV_DEVICEID=$(curl -sS -X POST --header "Content-Type:application/json" \
+                        --header "Authorization: Bearer ${MIGTOKEN_BALENACLOUD}" \
+                        --data '{"uuid":"'${MIGDEV_UUID}'", "method": "GET"}' \
+                        "https://api.balena-cloud.com/supervisor/v1/device/host-config" | \
+                        jq '.network.hostname' | tr -d '"')
+                    [[ 0 -ne $? ]] && { logEvent "FAIL" "fetch DEVICE ID with curl: ${MIGDEV_DEVICEID}"; ATTEMPT_DEVICEID=2; continue; }
+                ;;
+                2)
+                    logEvent "INFO" ">>> Fetch DEVICE ID with ssh"
+                    MIGDEV_DEVICEID=$(echo "cat /mnt/boot/migstate/hostname.bkp; exit;" | balena ssh ${MIGDEV_UUID} | grep b827 | cut -c9-20)
+                    [[ 0 -ne $? ]] && { logEvent "FAIL" "fetch DEVICE ID with ssh: ${MIGDEV_DEVICEID}"; exit $LINENO; }
+                ;;
+            esac
 
-        if [[ -z ${MIGDEV_DEVICEID} ]] || [[ "null" == ${MIGDEV_DEVICEID} ]]; then
-            logEvent "FAIL" "Null DEVICE ID"
-            exit $LINENO
-        fi
+            if [[ -z ${MIGDEV_DEVICEID} ]] || [[ "null" == ${MIGDEV_DEVICEID} ]]; then
+                logEvent "FAIL" "Null DEVICE ID"
+                [[ $ATTEMPT_DEVICEID -eq 2 ]] && exit $LINENO || { ATTEMPT_DEVICEID=2; continue; }
+            fi
 
-        if [[ ${MIGDEV_DEVICEID:0:6} == "b827eb" ]]; then
-            MIGDEV_DEVICEID=${MIGDEV_DEVICEID:0:12}
-            MIGDID="${MIGUUID_SHORT}:${MIGDEV_DEVICEID}"
-            logEvent "OK" "${MIGDEV_DEVICEID}"
-        else
-            logEvent "FAIL" "Invalid DEVICE ID: ${MIGDEV_DEVICEID}"
-            exit $LINENO
-        fi
+            if [[ ${MIGDEV_DEVICEID:0:6} == "b827eb" ]]; then
+                MIGDEV_DEVICEID=${MIGDEV_DEVICEID:0:12}
+                MIGDID="${MIGUUID_SHORT}:${MIGDEV_DEVICEID}"
+                logEvent "OK" "${MIGDEV_DEVICEID}"
+                break
+            else
+                logEvent "FAIL" "Invalid DEVICE ID: ${MIGDEV_DEVICEID}"
+                [[ $ATTEMPT_DEVICEID -eq 2 ]] && exit $LINENO || { ATTEMPT_DEVICEID=2; continue; }
+            fi
+        done
         echo ""
 
         logEvent "INFO" ">>> Fetch PROVISIONING TOKEN"
