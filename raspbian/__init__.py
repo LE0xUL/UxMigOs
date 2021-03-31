@@ -4,7 +4,7 @@ import pathlib
 
 from pydo import *
 
-from .. import config, packages, kernel
+from .. import config, packages, firmware
 
 env = os.environ.copy()
 
@@ -67,7 +67,7 @@ excludes = this_dir / 'excludes.conf'
 cleanup = this_dir / 'cleanup'
 chroot = 'proot -b /dev -0 -q qemu-arm -w / -r'
 chroot_nobind = 'proot -0 -q qemu-arm -w / -r'
-kernel_root_tarballs = [k.root for k in kernel.kernels]
+# kernel_root_tarballs = [k.root for k in kernel.kernels]
 package_tarballs = [p.package['target'] for p in packages.packages.values()]
 
 def package_install_actions():
@@ -91,10 +91,11 @@ def build_hosts():
 @command(
     produces=[initrd],
     consumes=[
+        firmware.fwroot,
         multistrap_conf,
         hosts,
         *dir_scan(overlay),
-        *kernel_root_tarballs,
+        # *kernel_root_tarballs,
         *package_tarballs,
         excludes,
     ])
@@ -146,6 +147,7 @@ def build():
 
         # delete root password
         f'{chroot} {stage} passwd -d root',
+        # f'{chroot} {stage} echo -e "migos\nmigos" | passwd root',
     ], shell=True, env=env)
 
     # remove excluded files that multistrap missed
@@ -160,7 +162,8 @@ def build():
         f'{chroot} {stage} udevadm hwdb --update --usr',
 
         # modules
-        *list(f'tar -xf {kr} -C {stage}' for kr in kernel_root_tarballs),
+        # *list(f'tar -xf {kr} -C {stage}' for kr in kernel_root_tarballs),
+        f'tar -xf {firmware.fwroot} -C {stage}',
 
         # packages
         *list(f'tar -xf {pkg} -C {stage}' for pkg in package_tarballs),

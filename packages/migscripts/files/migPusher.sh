@@ -21,12 +21,16 @@ function PrintHelp {
     echo "The <tool> can be: api or cli"
     echo "The <Device ID> will be in HEX format"
     echo "The <scriptName> can be: Diagnostic, InstallMIGOS"
-    echo "The <event> can be: subscribe"
+    echo "The <event> can be: migrate, subscribe, reboot"
     echo ""
     echo "Usage examples:"
+    echo "./migPusher.sh api b8_27_eb_a0_a8_71 migrate"
     echo "./migPusher.sh api b8_27_eb_a0_a8_71 Diagnostic"
+    echo ""
+    echo "./migPusher.sh cli b8_27_eb_a0_a8_71 migrate"
     echo "./migPusher.sh cli b8_27_eb_a0_a8_71 subscribe"
     echo "./migPusher.sh cli b8_27_eb_a0_a8_71 Diagnostic"
+    echo "./migPusher.sh cli b8_27_eb_a0_a8_71 InstallMIGOS"
     echo ""
 }
 
@@ -60,6 +64,22 @@ fi
 case $1 in
     'api')
         case $3 in
+            "migrate")
+                echo "Migrate $2" &>>${MIGSCRIPT_LOG}
+                MIGCMD="cd /tmp && \
+                wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh -O migDiagnostic.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && \
+                md5sum --check migDiagnostic.sh.md5 && \
+                bash migDiagnostic.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && \
+                md5sum --check migInstallMIGOS.sh.md5 && \
+                bash migInstallMIGOS.sh && \
+                [ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
+                reboot"
+            ;;
             "Diagnostic"|"InstallMIGOS"|"RestoreRaspbBoot")
                 echo "Valid Script name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="cd /tmp && \
@@ -126,6 +146,22 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
         fi
 
         case $3 in
+            "migrate")
+                echo "Migrate $2" &>>${MIGSCRIPT_LOG}
+                MIGCMD="cd /tmp && \
+                wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh -O migDiagnostic.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && \
+                md5sum --check migDiagnostic.sh.md5 && \
+                bash migDiagnostic.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && \
+                md5sum --check migInstallMIGOS.sh.md5 && \
+                bash migInstallMIGOS.sh && \
+                [ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
+                reboot"
+            ;;
             "Diagnostic"|"InstallMIGOS"|"RestoreRaspbBoot")
                 echo "Valid Script name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="cd /tmp && \
