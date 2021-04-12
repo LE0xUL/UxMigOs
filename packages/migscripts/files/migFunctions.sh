@@ -6,13 +6,12 @@ MIGSSTATE_BOOTDIR="/mnt/boot/migstate"
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_MOUNTDIR='/mnt/boot'
 MIGBOOT_DEVICE='/dev/mmcblk0p1'
-MIGROOTFS_DEVICE='/dev/mmcblk0p2'
-MIGROOTFS_MOUNTDIR='/mnt/rootfs'
+MIGDATAFS_DEVICE=${MIGCONFIG_DEVDATAFS:-/dev/mmcblk0p2}
+MIGDATAFS_MOUNTDIR='/mnt/data'
 MIG_RAMDISK='/mnt/migramdisk'
-MIGDOWNLOADS_DIR="${MIGROOTFS_MOUNTDIR}/root/migdownloads"
+MIGDOWNLOADS_DIR="${MIGDATAFS_MOUNTDIR}${MIGCONFIG_DIRDOWNLOADS:-/root/migdownloads}"
 
-# MIGBUCKET_URL='http://10.0.0.21/balenaos'
-MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
+MIGBUCKET_URL=${MIGCONFIG_BUCKET2DOWN:-https://storage.googleapis.com/balenamigration/32/}
 MIGBUCKET_FILETEST='test.file'
 MIGBUCKET_ATTEMPTNUM=0
 MIGBUCKET_ATTEMPTMAX=5
@@ -21,45 +20,30 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBKP_RASPBIANBOOT="migboot-backup-raspbian.tgz"
+FILE_BACKUP_BOOT="mig-backup-boot.tgz"
+DIR_BACKUP_BOOT_IN_DATAFS=${MIGCONFIG_DIRBKPBOOT:-/root}
 MIGBKP_MIGSTATE_TMP="/tmp/migos_migstate_boot.tgz"
 
 MIGCONFIG_FILE="mig.config"
-
-MIG_FILE_RESIN_SFDISK="resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk"
-MIG_FILE_RESIN_ROOTA='p2-resin-rootA.img.gz'
-MIG_FILE_RESIN_ROOTB='p3-resin-rootB.img.gz'
-MIG_FILE_RESIN_STATE='p5-resin-state.img.gz'
-MIG_FILE_RESIN_DATA='p6-resin-data.img.gz'
-MIG_FILE_RESIN_BOOT="p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz"
 MIG_FILE_RESIN_CONFIG_JSON='appBalena.config.json'
+FILE_BALENAFS="${MIGCONFIG_IMG2FLASH:-BalenaMigration32-rpi3-2.72.0_rev1-v12.3.5.img.gz}"
 
 MIG_FILE_LIST_BUCKET=( \
-    ${MIG_FILE_RESIN_SFDISK} \
-    ${MIG_FILE_RESIN_BOOT} \
-    ${MIG_FILE_RESIN_ROOTA} \
-    ${MIG_FILE_RESIN_ROOTB} \
-    ${MIG_FILE_RESIN_STATE} \
-    ${MIG_FILE_RESIN_DATA} \
+    ${FILE_BALENAFS} \
     'config3G.txt' \
     'cmdline3G.txt' \
-    'appBalena3G.config.json' \
-    'appBalena.config.json' \
 )
-
 
 MIG_FILE_LIST_MIGSTATE_BOOT=( \
     ${MIGCONFIG_FILE} \
+    ${MIG_FILE_RESIN_CONFIG_JSON} \
     resin-wlan \
+    resin-3g \
+    resin-ethernet \
     wpa_supplicant.conf.bkp \
     en.network \
     wlan0.network \
-    MIG_FSM_SFDISK_OK \
-    MIG_FSM_ROOTA_OK \
-    MIG_FSM_ROOTB_OK \
-    MIG_FSM_STATE_OK \
-    MIG_FSM_DATA_OK \
-    MIG_FSM_BOOT_OK \
+    MIG_FSM_BALENAFS_OK \
     MIG_FSM_CONFIG_OK \
     MIG_FSM_SUCCESS \
 )
@@ -169,7 +153,7 @@ function testBucketConnection {
 
     execCmmd 'cat /etc/resolv.conf | grep "8.8.8.8" || echo "nameserver 8.8.8.8" >> /etc/resolv.conf' logCommand
 
-	until $(execCmmd "wget -q --tries=10 --timeout=10 --spider ${MIGBUCKET_URL}/${MIGBUCKET_FILETEST}" logSuccess); do
+	until $(execCmmd "wget -q --tries=10 --timeout=10 --spider ${MIGBUCKET_URL}${MIGBUCKET_FILETEST}" logSuccess); do
 		if [ ${MIGBUCKET_ATTEMPTNUM} -eq ${MIGBUCKET_ATTEMPTMAX} ];then
 			logEvent "ERROR" "No Network Connection"
 			touch ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR
@@ -198,7 +182,7 @@ function migDownFile {
 
     logEvent "INFO" "Try to wget ${MIGDOWN_FILENAME}"
     
-    until $(execCmmd "wget ${MIGDOWN_URL}/${MIGDOWN_FILENAME} -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME}"); do
+    until $(execCmmd "wget ${MIGDOWN_URL}${MIGDOWN_FILENAME} -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME}"); do
         if [ ${MIGDOWN_ATTEMPTNUM} -eq ${MIGDOWN_ATTEMPTMAX} ];then
             logEvent "ERROR" "Can't download ${MIGDOWN_FILENAME}"
             return 1
@@ -288,24 +272,9 @@ function checkDownFilesInRamdisk {
 function updateStateFSM {
     logEvent "INI"
 
-    if [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_SFDISK_OK ]]; then
-        MIGFSM_STATE='SFDISK'
-        logEvent "INFO" "Set FSM State SFDISK"
-    elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_ROOTA_OK ]]; then
-        MIGFSM_STATE='ROOTA'
-        logEvent "INFO" "Set FSM State ROOTA"
-    elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_ROOTB_OK ]]; then
-        MIGFSM_STATE='ROOTB'
-        logEvent "INFO" "Set FSM State ROOTB"
-    elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_STATE_OK ]]; then
-        MIGFSM_STATE='STATE'
-        logEvent "INFO" "Set FSM State STATE"
-    elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_DATA_OK ]]; then
-        MIGFSM_STATE='DATA'
-        logEvent "INFO" "Set FSM State DATA"
-    elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_BOOT_OK ]]; then
-        MIGFSM_STATE='BOOT'
-        logEvent "INFO" "Set FSM State BOOT"
+    if [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_BALENAFS_OK ]]; then
+        MIGFSM_STATE='BALENAFS'
+        logEvent "INFO" "Set FSM State BALENAFS"
     elif [[ ! -f ${MIGSSTATE_DIR}/MIG_FSM_CONFIG_OK ]]; then
         MIGFSM_STATE='CONFIG'
         logEvent "INFO" "Set FSM State CONFIG"
@@ -322,58 +291,17 @@ function migrationFSM {
     logEvent "INI"
 
     case ${MIGFSM_STATE} in
-        'SFDISK')
-            logEvent "INFO" "SFDISK > ${MIGMMC}"
-            execCmmd "sfdisk ${MIGMMC} < ${MIG_RAMDISK}/${MIG_FILE_RESIN_SFDISK}" logSuccess || \
-            { LogEvent "ERROR" "Fail flash SFDISK"; return 1; }
-            touch ${MIGSSTATE_DIR}/MIG_FSM_SFDISK_OK 
-            logEvent "OK" "SFDISK -> ${MIGMMC}"
-            ;;
-
-        'ROOTA')
-            logEvent "INFO" "ROOTA - gunzip | dd"
-            execCmmd "gunzip -c ${MIG_RAMDISK}/${MIG_FILE_RESIN_ROOTA} | dd of=${MIGMMC}p2 bs=4M" logSuccess || \
-            { LogEvent "ERROR" "Fail flash ROOTA"; return 1; }
-            touch ${MIGSSTATE_DIR}/MIG_FSM_ROOTA_OK 
-            logEvent "OK" "ROOTA -> ${MIGMMC}p2"
-            ;;
-
-        'ROOTB')
-            logEvent "INFO" "ROOTB - gunzip | dd"
-            execCmmd "gunzip -c ${MIG_RAMDISK}/${MIG_FILE_RESIN_ROOTB} | dd of=${MIGMMC}p3 bs=4M" logSuccess || \
-            { LogEvent "ERROR" "Fail flash ROOTB"; return 1; }
-            touch ${MIGSSTATE_DIR}/MIG_FSM_ROOTB_OK 
-            logEvent "OK" "ROOTB -> ${MIGMMC}p3"
-            ;;
-            
-        'STATE')
-            logEvent "INFO" "STATE - gunzip | dd"
-            execCmmd "gunzip -c ${MIG_RAMDISK}/${MIG_FILE_RESIN_STATE} | dd of=${MIGMMC}p5 bs=4M" logSuccess || \
-            { LogEvent "ERROR" "Fail flash STATE"; return 1; }
-            touch ${MIGSSTATE_DIR}/MIG_FSM_STATE_OK 
-            logEvent "OK" "STATE -> ${MIGMMC}p5"
-            ;;
-            
-        'DATA')
-            logEvent "INFO" "DATA - gunzip | dd"
-            execCmmd "gunzip -c ${MIG_RAMDISK}/${MIG_FILE_RESIN_DATA} | dd of=${MIGMMC}p6 bs=4M" logSuccess || \
-            { LogEvent "ERROR" "Fail flash DATA"; return 1; }
-            touch ${MIGSSTATE_DIR}/MIG_FSM_DATA_OK 
-            logEvent "OK" "DATA -> ${MIGMMC}p6"
-            ;;
-            
-        'BOOT')
+        'BALENAFS')
             makeMigstateBootBackup || return 1
 
             execCmmd "mount | grep ${MIGBOOT_DEVICE}" logSuccess && \
             { LogEvent "ERROR" "Fail ${MIGBOOT_DEVICE} is mounted"; return 1; }
 
-            logEvent "INFO" "BOOT - gunzip | dd"
-            execCmmd "gunzip -c ${MIG_RAMDISK}/${MIG_FILE_RESIN_BOOT} | dd of=${MIGBOOT_DEVICE} bs=4M" logSuccess || \
-            { LogEvent "ERROR" "Fail flash BOOT"; return 1; }
-            
-            touch ${MIGSSTATE_DIR}/MIG_FSM_BOOT_OK 
-            logEvent "OK" "BOOT -> ${MIGBOOT_DEVICE}"
+            logEvent "INFO" "BALENAFS - gunzip | dd"
+            execCmmd "gunzip -c ${MIG_RAMDISK}/${FILE_BALENAFS} | dd of=${MIGMMC} bs=4M" logSuccess || \
+            { LogEvent "ERROR" "Fail flash BALENAFS"; return 1; }
+            touch ${MIGSSTATE_DIR}/MIG_FSM_BALENAFS_OK
+            logEvent "OK" "BALENAFS -> ${MIGMMC}"
 
             restoreMigstateBootBackup || return 1
             ;;
@@ -381,8 +309,12 @@ function migrationFSM {
         'CONFIG')
             bootMount UPDATE_BOOT_CONFIG || return 1
             
-            execCmmd "cp ${MIGSSTATE_DIR}/${MIG_FILE_RESIN_CONFIG_JSON} ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
-            { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+            if [[ -f ${MIGSSTATE_DIR}/${MIG_FILE_RESIN_CONFIG_JSON} ]]; then
+                execCmmd "cp ${MIGSSTATE_DIR}/${MIG_FILE_RESIN_CONFIG_JSON} ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
+                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+            else
+                logEvent "INFO" "missing ${MIG_FILE_RESIN_CONFIG_JSON}"
+            fi
 
             if [[ -f ${MIGSSTATE_DIR}/resin-wlan ]]; then
                 execCmmd "mkdir -vp ${MIGBOOT_MOUNTDIR}/system-connections" logSuccess && \
@@ -414,8 +346,8 @@ function migrationFSM {
                 execCmmd "cp -fv ${MIG_RAMDISK}/config3G.txt ${MIGBOOT_MOUNTDIR}/config.txt" logSuccess || \
                 { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
 
-                execCmmd "cp -fv ${MIG_RAMDISK}/appBalena3G.config.json ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
-                { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
+                # execCmmd "cp -fv ${MIG_RAMDISK}/appBalena3G.config.json ${MIGBOOT_MOUNTDIR}/config.json" logSuccess || \
+                # { LogEvent "ERROR"; bootUmount UPDATE_BOOT_CONFIG; return 1; }
 
             else
                 logEvent "INFO" "missing resin-3g"
@@ -620,20 +552,20 @@ function restoreNetworkConfig {
     return 0
 }
 
-function checkRootFS {
+function checkDataFS {
     logEvent "INI"
 
-    [[ -d ${MIGROOTFS_MOUNTDIR} ]] || execCmmd "mkdir -vp ${MIGROOTFS_MOUNTDIR}" logSuccess || return 1
+    [[ -d ${MIGDATAFS_MOUNTDIR} ]] || execCmmd "mkdir -vp ${MIGDATAFS_MOUNTDIR}" logSuccess || return 1
 
-    execCmmd "mount -v ${MIGROOTFS_DEVICE} ${MIGROOTFS_MOUNTDIR}" logSuccess || return 1
+    execCmmd "mount -v ${MIGDATAFS_DEVICE} ${MIGDATAFS_MOUNTDIR}" logSuccess || return 1
 
-    # try to copy backup of raspbian boot
-    if [[ -f /root/${MIGBKP_RASPBIANBOOT} ]]; then
-        logEvent "OK" "${MIGBKP_RASPBIANBOOT} found in /root"
-    elif [[ -f ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} ]]; then
-        execCmmd "cp -v ${MIGROOTFS_MOUNTDIR}/root/${MIGBKP_RASPBIANBOOT} /root" logSuccess || return 1
+    # try to copy backup of balena boot
+    if [[ -f /root/${FILE_BACKUP_BOOT} ]]; then
+        logEvent "OK" "${FILE_BACKUP_BOOT} found in /root"
+    elif [[ -f ${MIGDATAFS_MOUNTDIR}${DIR_BACKUP_BOOT_IN_DATAFS}/${FILE_BACKUP_BOOT} ]]; then
+        execCmmd "cp -v ${MIGDATAFS_MOUNTDIR}${DIR_BACKUP_BOOT_IN_DATAFS}/${FILE_BACKUP_BOOT} /root" logSuccess || return 1
     else
-        logEvent "FAIL" "${MIGBKP_RASPBIANBOOT} not found in ${MIGROOTFS_MOUNTDIR}/root"
+        logEvent "FAIL" "${FILE_BACKUP_BOOT} not found in ${MIGDATAFS_MOUNTDIR}${DIR_BACKUP_BOOT_IN_DATAFS}"
     fi
 
     #try to copy migdownloads files
@@ -647,7 +579,7 @@ function checkRootFS {
         do
             if [[ -f ${MIGDOWNLOADS_DIR}/${FILENAME_TO_COPY} ]]; then
                 execCmmd "cp -v ${MIGDOWNLOADS_DIR}/${FILENAME_TO_COPY} ${MIG_RAMDISK}" logSuccess && \
-                logEvent "OK" "${FILENAME_TO_COPY} found in FSROOT and copyed to ${MIG_RAMDISK}" || \
+                logEvent "OK" "${FILENAME_TO_COPY} found in FSDATA and copied to ${MIG_RAMDISK}" || \
                 return 1
             fi
         done
@@ -656,7 +588,7 @@ function checkRootFS {
 
     fi
 
-    execCmmd "umount -v ${MIGROOTFS_DEVICE}" logSuccess || return 1
+    execCmmd "umount -v ${MIGDATAFS_DEVICE}" logSuccess || return 1
 
     logEvent "END"
     return 0
@@ -710,28 +642,28 @@ function restoreMigstateBootBackup {
     return 0
 }
 
-function restoreRaspbianBoot {
+function restoreBackupBoot {
     logEvent "INI"
     
-    [[ -f ${MIGSSTATE_DIR}/MIG_FSM_SFDISK_OK ]] && \
-    { LogEvent "FAIL" "SFDISK present. The partition table was altered"; return 1; }
+    [[ -f ${MIGSSTATE_DIR}/MIG_FSM_BALENAFS_OK ]] && \
+    { LogEvent "FAIL" "BALENAFS is present. The file systems was altered"; return 1; }
 
 
     makeMigstateBootBackup || return 1
     bootMount RESTORE_RASPB_BOOT || return 1
 
-    if [[ -f /root/${MIGBKP_RASPBIANBOOT} ]];then
+    if [[ -f /root/${FILE_BACKUP_BOOT} ]];then
         execCmmd "rm -vrf ${MIGBOOT_DIR}/*" logSuccess && \
-        execCmmd "tar -xzvf ${MIGBKP_RASPBIANBOOT} -C /" logSuccess && \
-        logEvent "OK" "Restaured Raspbian Backup in boot partition" || \
+        execCmmd "tar -xzvf ${FILE_BACKUP_BOOT} -C ${MIGBOOT_MOUNTDIR}" logSuccess && \
+        logEvent "OK" "Restaurated boot Backup in boot partition" || \
         { 
-            logEvent "ERROR" "Can't restore Raspbian Backup in boot partition"
+            logEvent "ERROR" "Can't restore boot Backup in boot partition"
             # TODO: RESTORE MIGOS BOOT???
             bootUmount RESTORE_RASPB_BOOT
             return 1
         }
     else
-        logEvent "ERROR" "Missing Raspbian BackUp File: ${MIGBKP_RASPBIANBOOT}"
+        logEvent "ERROR" "Missing boot BackUp File: ${FILE_BACKUP_BOOT}"
         bootUmount RESTORE_RASPB_BOOT;
         return 1
     fi

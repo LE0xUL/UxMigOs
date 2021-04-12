@@ -8,13 +8,13 @@ MIGDID=""
 MIGTOKEN_BALENACLOUD="eho6t0qUolELUTcQrDejU9H1K6jdmI0f"
 MIGFILE_DEVICESLIST="devlist.txt"
 MIGFILE_DEVICEINFO="devinfo.txt"
-MIGFILE_TOKENLIST="devices_migrated.csv"
+: ${MIGFILE_TOKENLIST:=devices_migrated.csv}
 
-MIG_BALENA_APP_INIT="BalenaMigration"
-MIG_BALENA_APP_PROD="${1:-admobilize-vision-rpi3}"
+: ${MIG_BALENA_APP_INIT:=BalenaMigration32}
+: ${MIG_BALENA_APP_PROD:=admobilize-vision-rpi3}
 
-MIGVAR_APPLICATION_ID="FACEV2"
-MIGVAR_PROJECT_ID="${2:-admobilize-production}"
+: ${MIGVAR_APPLICATION_ID:=FACEV2}
+: ${MIGVAR_PROJECT_ID:=admobilize-production}
 
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGTOKEN_PROVIDERLOG="859e69f9-0700-450f-b673-bbbba059bb64"

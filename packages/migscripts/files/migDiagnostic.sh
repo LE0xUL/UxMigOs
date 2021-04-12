@@ -1,5 +1,9 @@
 #!/bin/bash
 
+: ${MIGURL_BUCKET:=https://storage.googleapis.com/balenamigration/32b/}
+: ${MIGFILE_IMG2FLASH_WF:=BalenaMigration32-rpi3-2.72.0_rev1-v12.3.5.img.gz}
+: ${MIGFILE_IMG2FLASH_3G:=BalenaMigration32-3G-rpi3-2.72.0_rev1-v12.3.5.img.gz}
+
 MIGTIME_INI="$(cat /proc/uptime | grep -o '^[0-9]\+')"
 MIGDID="$(hostname)"
 [[ 0 -ne $? ]] && { echo "[FAIL] Can't set MIGDID"; exit $LINENO; }
@@ -19,7 +23,6 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 
 MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
@@ -329,6 +332,23 @@ function validationNetwork {
     return 0
 }
 
+function updateMigConfig {
+    logEvent "INI"
+    
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]]; then
+        echo "MIGCONFIG_IMG2FLASH='${MIGFILE_IMG2FLASH_3G}'" >>${MIGCONFIG_FILE} && \
+        logEvent "INFO" "MIGCONFIG_IMG2FLASH='${MIGFILE_IMG2FLASH_3G}'"
+    else
+        echo "MIGCONFIG_IMG2FLASH='${MIGFILE_IMG2FLASH_WF}'" >>${MIGCONFIG_FILE} && \
+        logEvent "INFO" "MIGCONFIG_IMG2FLASH='${MIGFILE_IMG2FLASH_WF}'"
+    fi
+
+    echo "MIGCONFIG_BUCKET2DOWN='${MIGURL_BUCKET}'" >>${MIGCONFIG_FILE} && \
+    logEvent "INFO" "MIGCONFIG_BUCKET2DOWN='${MIGURL_BUCKET}'"
+
+    logEvent "END"
+}
+
 function checkNetworkStatus {
     logEvent "INI"
 
@@ -349,29 +369,24 @@ function checkFilesAtBucket {
     logEvent "INI"
 
     fileList=(  'appBalena.config.json' \
+                'appBalena3G.config.json' \
+                ${MIGCONFIG_IMG2FLASH} \
                 'migboot-migos-balena.tgz' \
-                "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
-                'p2-resin-rootA.img.gz' \
-                'p3-resin-rootB.img.gz' \
-                'p5-resin-state.img.gz' \
-                'p6-resin-data.img.gz' \
-                "resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk" \
                 'jq_1.4-2.1+deb8u1_armhf.deb' \
                 'config3G.txt' \
                 'cmdline3G.txt' \
-                'appBalena3G.config.json' \
                 )
 
     for fileName in ${fileList[@]}
     do
-        wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}" &>${MIGCOMMAND_LOG} && \
+        wget -q --tries=10 --timeout=10 --spider "${MIGURL_BUCKET}${fileName}" &>${MIGCOMMAND_LOG} && \
         logEvent "OK" "${fileName} found in the bucket server" || \
         exitError "ERROR to find ${fileName} in the bucket server" logCommand
     done
 
     for fileName in ${fileList[@]}
     do
-        wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/${fileName}.md5" &>${MIGCOMMAND_LOG} && \
+        wget -q --tries=10 --timeout=10 --spider "${MIGURL_BUCKET}${fileName}.md5" &>${MIGCOMMAND_LOG} && \
         logEvent "OK" "${fileName}.md5 found in the bucket server" || \
         exitError "ERROR to find ${fileName}.md5 in the bucket server" logCommand
     done
@@ -395,6 +410,8 @@ function testMigState {
 
         mkdir -vp ${MIGSSTATE_DIR}
     fi
+
+    logEvent "END"
 }
 
 function testIsRoot {
@@ -409,7 +426,7 @@ function testIsRoot {
 }
 
 function testBucketConnection {
-    wget -q --tries=10 --timeout=10 --spider "$MIGBUCKET_URL/$MIGBUCKET_FILETEST"
+    wget -q --tries=10 --timeout=10 --spider "${MIGURL_BUCKET}${MIGBUCKET_FILETEST}"
 
     if [[ $? -ne 0 ]]; then
         echo "[FAIL] No connection to the bucket server detected"
@@ -461,9 +478,14 @@ function iniDiagnostic {
     validationNetwork
 
     source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
-    exitError "FAIL at exec: source ${MIGCONFIG_FILE}" logCommand
+    exitError "FAIL at exec: source1 ${MIGCONFIG_FILE}" logCommand
 
-    checkNetworkStatus
+    updateMigConfig
+
+    source ${MIGCONFIG_FILE} &>${MIGCOMMAND_LOG} || \
+    exitError "FAIL at exec: source2 ${MIGCONFIG_FILE}" logCommand
+
+    # checkNetworkStatus
     checkFilesAtBucket
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS

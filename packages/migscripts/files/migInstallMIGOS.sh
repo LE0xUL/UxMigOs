@@ -5,6 +5,9 @@ MIGDID="$(hostname)"
 
 [[ 0 -ne $? ]] && { echo "[FAIL] Can't set MIGDID"; exit $LINENO; }
 
+: ${FILE_MIGOS_BOOT:=migboot-migos-balena.tgz}
+: ${MIGURL_BUCKET:=https://storage.googleapis.com/balenamigration/32b/}
+
 MIGLOG_SCRIPTNAME="migInstallMIGOS.sh"
 MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATEDIR_ROOT="/root/migstate"
@@ -17,9 +20,8 @@ MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGBOOT_DIR='/boot'
-MIGBKP_RASPBIANBOOT="/root/migboot-backup-raspbian.tgz"
+FILE_BACKUP_BOOT="mig-backup-boot.tgz"
 
-MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
 MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
 MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
 
@@ -29,14 +31,14 @@ MIGNET_RESIN_WLAN_FILE="${MIGSSTATE_DIR}/resin-wlan"
 MIGNET_RESIN_ETH_FILE="${MIGSSTATE_DIR}/resin-ethernet"
 MIGNET_RESIN_3G_FILE="${MIGSSTATE_DIR}/resin-3g"
 
-MIGFILE_BALENA_CONFIG_JSON="appBalena.config.json"
+MIGFILE_BALENAWF_CONFIG_JSON="appBalena.config.json"
+MIGFILE_BALENA3G_CONFIG_JSON="appBalena3G.config.json"
 MIGFILE_JQ_PACKAGE="jq_1.4-2.1+deb8u1_armhf.deb"
 
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGBUCKET_URL='https://storage.googleapis.com/balenamigration'
 MIGBUCKET_FILETEST='test.file'
 
 # USE: logCommand 
@@ -119,15 +121,15 @@ function restoreRaspbianBoot {
     logEvent "INI"
 
     if [[ -f ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK ]] || [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
-        if [[ -f ${MIGBKP_RASPBIANBOOT} ]];then
+        if [[ -f /root/${FILE_BACKUP_BOOT} ]];then
             execCmmd "rm -vrf ${MIGBOOT_DIR}/*" logSuccess && \
-            execCmmd "tar -xzvf ${MIGBKP_RASPBIANBOOT} -C /" logSuccess && \
+            execCmmd "tar -xzvf /root/${FILE_BACKUP_BOOT} -C ${MIGBOOT_DIR}" logSuccess && \
             execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS" logSuccess && \
             execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK"  logSuccess && \
             logEvent "OK" "Restaured Raspbian Backup in boot partition" || \
             logEvent "FAIL" "Can't restore Raspbian Backup in boot partition"
         else
-            logEvent "FAIL" "Missing Raspbian BackUp File: ${MIGBKP_RASPBIANBOOT}"
+            logEvent "FAIL" "Missing Raspbian BackUp File: /root/${FILE_BACKUP_BOOT}"
         fi
     fi
 
@@ -166,12 +168,12 @@ function backupBootPartition {
     logEvent "OK" "Validated Raspbian boot partition" || \
     exitError "Missing validation Raspbian boot file: ${MIGOS_RASPBIAN_BOOT_FILE}"
 
-    if [[ -f ${MIGBKP_RASPBIANBOOT} ]]; then
-        logEvent "INFO" "Raspbian boot backup file was detected in the system: ${MIGBKP_RASPBIANBOOT}"
+    if [[ -f /root/${FILE_BACKUP_BOOT} ]]; then
+        logEvent "INFO" "Raspbian boot backup file was detected in the system: ${FILE_BACKUP_BOOT}"
     else
-        execCmmd "tar -czvf ${MIGBKP_RASPBIANBOOT} ${MIGBOOT_DIR}" logSuccess && \
-        logEvent "OK" "Created boot backup file: ${MIGBKP_RASPBIANBOOT}" || \
-        exitError "FAIL at make raspbian boot backup file: ${MIGBKP_RASPBIANBOOT}"
+        execCmmd "cd ${MIGBOOT_DIR} && tar -czvf /root/${FILE_BACKUP_BOOT} ." logSuccess && \
+        logEvent "OK" "Created boot backup file: /root/${FILE_BACKUP_BOOT}" || \
+        exitError "FAIL at make raspbian boot backup file: /root/${FILE_BACKUP_BOOT}"
     fi
     
     logEvent "END"
@@ -183,8 +185,8 @@ function migos2Boot {
     execCmmd "rm -vfr ${MIGBOOT_DIR}/*" logSuccess || \
     exitError "Fail at exec: rm -vfr ${MIGBOOT_DIR}/*" restoreRaspbianBoot
 
-    execCmmd "tar -xzvf ${MIGDOWN_DIR}/${MIGOS_BALENA_FILENAME} -C ${MIGBOOT_DIR}" logSuccess || \
-    exitError "tar -xzvf ${MIGDOWN_DIR}/${MIGOS_BALENA_FILENAME} -C ${MIGBOOT_DIR}" restoreRaspbianBoot
+    execCmmd "tar -xzvf ${MIGDOWN_DIR}/${FILE_MIGOS_BOOT} -C ${MIGBOOT_DIR}" logSuccess || \
+    exitError "tar -xzvf ${MIGDOWN_DIR}/${FILE_MIGOS_BOOT} -C ${MIGBOOT_DIR}" restoreRaspbianBoot
 
     execCmmd "touch ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK" logSuccess || \
     exitError "touch ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK" restoreRaspbianBoot
@@ -365,7 +367,7 @@ function makeNetFilesResin {
 
     execCmmd "MODEM3G_ENABLED=$(jq '.modem.value.enabled' ${MODEM3G_STATUSFILE})"
 
-    if [[ "true" == "${MODEM3G_ENABLED}" ]]; then
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]] && [[ "true" == "${MODEM3G_ENABLED}" ]]; then
         logEvent "OK" "3G modem Detected"
 
         execCmmd "MODEM3G_CARRIER_NAME=$(jq '.modem.value.carrier.name' ${MODEM3G_STATUSFILE})"
@@ -389,6 +391,9 @@ function makeNetFilesResin {
         execCmmd "cat ${MIGNET_RESIN_3G_FILE}" logCommand && \
         logEvent "OK" "Created resin 3G file: ${MIGNET_RESIN_3G_FILE}" || \
         exitError "FAIL at create resin 3G file: ${MIGNET_RESIN_3G_FILE}"
+    
+    elif [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]] && [[ "true" != "${MODEM3G_ENABLED}" ]]; then
+        exitError "3G config not detected"
     fi
 
     logEvent "END"
@@ -459,18 +464,13 @@ function downFilesFromBucket {
     MIGMD5_ATTEMPTMAX=2
 
     MIG_FILE_BUCKET_LIST=(  \
-        "${MIGFILE_BALENA_CONFIG_JSON}" \
-        'migboot-migos-balena.tgz' \
-        "resin-partitions-${MIGCONFIG_BOOTSIZE}.sfdisk" \
-        "p1-resin-boot-${MIGCONFIG_BOOTSIZE}.img.gz" \
-        'p2-resin-rootA.img.gz' \
-        'p3-resin-rootB.img.gz' \
-        'p5-resin-state.img.gz' \
-        'p6-resin-data.img.gz' \
+        "${MIGFILE_BALENAWF_CONFIG_JSON}" \
+        "${MIGFILE_BALENA3G_CONFIG_JSON}" \
+        "${FILE_MIGOS_BOOT}" \
         "${MIGFILE_JQ_PACKAGE}" \
+        "${MIGCONFIG_IMG2FLASH}" \
         'config3G.txt' \
         'cmdline3G.txt' \        
-        'appBalena3G.config.json' \
     )
 
     execCmmd "mkdir -vp ${MIGDOWN_DIR}" logSuccess || \
@@ -486,13 +486,13 @@ function downFilesFromBucket {
             MIGMD5_ATTEMPTNUM=$(($MIGMD5_ATTEMPTNUM+1))
             
             if [[ ! -f ${MIGDOWN_DIR}/${fileName} ]]; then
-                migDownFile ${MIGBUCKET_URL} ${fileName} ${MIGDOWN_DIR} || \
+                migDownFile ${MIGURL_BUCKET} ${fileName} ${MIGDOWN_DIR} || \
                 exitError "Can't download ${fileName}" logCommand
             else
                 logEvent "INFO" "Found ${fileName} in ${MIGDOWN_DIR}";
             fi
 
-            migDownFile ${MIGBUCKET_URL} ${fileName}.md5 ${MIGDOWN_DIR} || \
+            migDownFile ${MIGURL_BUCKET} ${fileName}.md5 ${MIGDOWN_DIR} || \
             exitError "Can't download ${fileName}.md5" logCommand
 
             cd ${MIGDOWN_DIR} &>>${MIGSCRIPT_LOG} && \
@@ -527,10 +527,18 @@ function makeBalenaConfigJson {
     DEVICE_ID="$(cat /sys/class/net/eth0/address | tr -d ':')"
     [[ 0 -ne $? ]] && exitError "Can't set DEVICE_ID"
 
+    if [[ 'UP' == "${MIGCONFIG_3G_CONN}" ]];then
+        MIGFILE_BALENA_CONFIG_JSON=${MIGFILE_BALENA3G_CONFIG_JSON}
+        logEvent "OK" "Base config.json is ${MIGFILE_BALENA_CONFIG_JSON}"
+    else
+        MIGFILE_BALENA_CONFIG_JSON=${MIGFILE_BALENAWF_CONFIG_JSON}
+        logEvent "OK" "Base config.json is ${MIGFILE_BALENA_CONFIG_JSON}"
+    fi
+
     if [[ -f ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} ]]; then
-        execCmmd "jq '.+ {\"hostname\": \"${DEVICE_ID}\"}' ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} > ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" && \
-        logEvent "OK" "Created ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}" || \
-        exitError "Can't create ${MIGSSTATE_DIR}/${MIGFILE_BALENA_CONFIG_JSON}"
+        execCmmd "jq '.+ {\"hostname\": \"${DEVICE_ID}\"}' ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON} > ${MIGSSTATE_DIR}/appBalena.config.json" && \
+        logEvent "OK" "Created ${MIGSSTATE_DIR}/appBalena.config.json" || \
+        exitError "Can't create ${MIGSSTATE_DIR}/appBalena.config.json"
     else
         exitError "Missing ${MIGDOWN_DIR}/${MIGFILE_BALENA_CONFIG_JSON}"
     fi
@@ -620,7 +628,7 @@ function testIsRoot {
 }
 
 function testBucketConnection {
-    wget -q --tries=10 --timeout=10 --spider "${MIGBUCKET_URL}/$MIGBUCKET_FILETEST"
+    wget -q --tries=10 --timeout=10 --spider "${MIGURL_BUCKET}$MIGBUCKET_FILETEST"
 
     if [[ $? -ne 0 ]]; then
         echo "[FAIL] No connection to the bucket server detected"

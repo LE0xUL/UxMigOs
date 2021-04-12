@@ -23,7 +23,7 @@ function cmdFail {
         echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg
     fi
 
-    restoreRaspbianBoot
+    restoreBackupBoot
     
     logFilePush
     exit 1
@@ -67,8 +67,7 @@ if [[ ! -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
     testBucketConnection || cmdFail "Fail Network Connection"
 fi
 
-# TODO: updateStateFSM para no descargar todas las imagenes
-checkRootFS || cmdFail
+checkDataFS || cmdFail
 downloadBucketFilesInRamdisk || cmdFail
 # checkDownFilesInRamdisk || cmdFail
 
