@@ -210,7 +210,7 @@ do
             logEvent "FAIL" "Null DEVICE NAME"
             exit $LINENO
         fi
-        balena device rename ${MIGDEV_UUID} ${MIGDEV_DEVICE_NAME} &>${MIGCOMMAND_LOG} && \
+        balena device rename ${MIGDEV_UUID} "${MIGDEV_DEVICE_NAME}" &>${MIGCOMMAND_LOG} && \
         logEvent "OK" "${MIGDEV_DEVICE_NAME}" || { logEvent "FAIL" "Rename device ${MIGDEV_DEVICE_NAME}"; exit $LINENO; }
         echo ""
 
