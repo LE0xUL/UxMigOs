@@ -444,9 +444,9 @@ function migDownFile {
 
     logEvent "INFO" "Downloading ${MIGDOWN_FILENAME}"
     
-    until $(wget "${MIGDOWN_URL}/${MIGDOWN_FILENAME}" -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME} &>${MIGCOMMAND_LOG}); do
+    until $(wget "${MIGDOWN_URL}${MIGDOWN_FILENAME}" -O ${MIGDOWN_DIRECTORY}/${MIGDOWN_FILENAME} &>${MIGCOMMAND_LOG}); do
         if [ ${MIGDOWN_ATTEMPTNUM} -eq ${MIGDOWN_ATTEMPTMAX} ];then
-            logEvent "ERROR" "Can't download ${MIGDOWN_FILENAME}"
+            logCommand "Can't download ${MIGDOWN_FILENAME}"
             return 1
         fi
 
