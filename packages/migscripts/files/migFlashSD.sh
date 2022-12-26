@@ -16,10 +16,10 @@ function cmdFail {
     [[ "logCommand" == "$2" ]] && logCommand "${MIGLOG_MSG}" "${FUNCNAME[1]}" "${BASH_LINENO[0]}"
 
     logEvent "EXIT" "${MIGLOG_MSG}" "${FUNCNAME[1]}" "${BASH_LINENO[0]}" || \
-    echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+    echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
     echo "" &>>${MIGSCRIPT_LOG}
-    echo ">>>>>>>>    MIGOS FAIL FLASH SD    <<<<<<<<" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+    echo ">>>>>>>>    UXMIGOS FAIL FLASH SD    <<<<<<<<" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     date &>>${MIGSCRIPT_LOG}
     echo "\n" &>>${MIGSCRIPT_LOG}
     logFilePush
@@ -32,7 +32,7 @@ function cmdFail {
 
 echo "" &>> ${MIGSCRIPT_LOG}
 echo "" &>> ${MIGSCRIPT_LOG}
-echo "########    MIGOS INI FLASH SD    ########" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "########    UXMIGOS INI FLASH SD    ########" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 date &>> ${MIGSCRIPT_LOG}
 echo "" &>> ${MIGSCRIPT_LOG}
 
@@ -58,7 +58,7 @@ logEvent "SUCCESS" "BALENA MIGRATION SUCCESS"
 
 echo "" &>>${MIGSCRIPT_LOG}
 date &>>${MIGSCRIPT_LOG}
-echo "========    MIGOS SUCCESS FLASH SD    ========" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "========    UXMIGOS SUCCESS FLASH SD    ========" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 echo -e "\n\n" &>>${MIGSCRIPT_LOG}
 logFilePush
 exit 0

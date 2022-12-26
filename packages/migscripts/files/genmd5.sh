@@ -3,7 +3,7 @@
 #rm -vf *md5
 
 fileList=( \
-	'migInstallMIGOS.sh' \
+	'migInstallUXMIGOS.sh' \
 	'migDiagnostic.sh' \
 	'migRestoreRaspbBoot.sh' \
 	)

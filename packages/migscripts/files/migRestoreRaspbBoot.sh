@@ -16,7 +16,7 @@ MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
 MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
-MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
+UXMIGOS_RASPBIAN_BOOT_FILE="/boot/UXMIGOS_RASPBIAN_BOOT_${MIGDID}"
 
 
 # USE: logCommand 
@@ -117,12 +117,12 @@ function execCmmd {
 function restoreRaspbianBoot {
     logEvent "INI"
 
-    if [[ -f ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK ]] || [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
+    if [[ -f ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK ]] || [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
         if [[ -f ${MIGBKP_RASPBIANBOOT} ]];then
             execCmmd "rm -vrf ${MIGBOOT_DIR}/*" logSuccess && \
             execCmmd "tar -xzvf ${MIGBKP_RASPBIANBOOT} -C /" logSuccess && \
-            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS" logSuccess && \
-            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK"  logSuccess && \
+            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS" logSuccess && \
+            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK"  logSuccess && \
             logEvent "OK" "Restaured Raspbian Backup in boot partition" || \
             exitError "Can't restore Raspbian Backup in boot partition"
         else
@@ -176,9 +176,9 @@ function mainRestoreRasbBoot {
 
     restoreRaspbianBoot
 
-    [[ -f ${MIGOS_RASPBIAN_BOOT_FILE} ]] && \
+    [[ -f ${UXMIGOS_RASPBIAN_BOOT_FILE} ]] && \
     logEvent "OK" "Validated Raspbian Backup in boot partition" || \
-    logEvent "FAIL" "Missing validation Raspbian boot file: ${MIGOS_RASPBIAN_BOOT_FILE}"
+    logEvent "FAIL" "Missing validation Raspbian boot file: ${UXMIGOS_RASPBIAN_BOOT_FILE}"
 
     touch ${MIGSSTATE_DIR}/MIG_RESTORE_RASPB_BOOT_SUCCESS
 
@@ -219,9 +219,9 @@ exit 0
 
 # # En caso de error, envia log del comando a la web
 # function logCommand {
-#     echo "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | INI | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+#     echo "UXMIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | INI | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
-#     if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
+#     if [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
 #         echo '{"device":"'"${MIGDID}"'", '\
 #         '"script":"migRestoreRaspBoot.sh", '\
 #         '"function":"'"${FUNCNAME[1]}"'", '\
@@ -236,19 +236,19 @@ exit 0
 #         curl -X POST \
 #         -d "@${MIGCOMMAND_LOG}" \
 #         "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG} || \
-#         echo "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+#         echo "UXMIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 #     else
-#         echo "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, No network" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+#         echo "UXMIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, No network" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 #     fi
 
-#     echo "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | END | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+#     echo "UXMIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | END | CMDLOG " |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 
 #     return 0
 # }
 
 # # Guarda log de evento en el archivo de log, lo muestra por kmsg y lo envia a la web
 # function logEvent {
-#     if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
+#     if [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
 #         >${MIGCOMMAND_LOG}
 #         echo '{"device":"'"${MIGDID}"'", '\
 #         '"script":"migRestoreRaspBoot.sh", '\
@@ -263,7 +263,7 @@ exit 0
 #         --data @- \
 #         "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>>${MIGCOMMAND_LOG} || logCommand
 #     else
-#         echo "MIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | ${MIGLOG_STATE} | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
+#         echo "UXMIGOS | ${BASH_SOURCE[1]##*/} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | ${MIGLOG_STATE} | $1" |& tee -a ${MIGSCRIPT_LOG} /dev/kmsg
 #     fi
 
 #     return 0

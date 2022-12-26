@@ -20,7 +20,7 @@ function PrintHelp {
     echo ""
     echo "The <tool> can be: api or cli"
     echo "The <Device ID> will be in HEX format"
-    echo "The <scriptName> can be: Diagnostic, InstallMIGOS"
+    echo "The <scriptName> can be: Diagnostic, InstallUXMIGOS"
     echo "The <event> can be: migrate, subscribe, reboot"
     echo ""
     echo "Usage examples:"
@@ -30,7 +30,7 @@ function PrintHelp {
     echo "./migPusher.sh cli b8_27_eb_a0_a8_71 migrate"
     echo "./migPusher.sh cli b8_27_eb_a0_a8_71 subscribe"
     echo "./migPusher.sh cli b8_27_eb_a0_a8_71 Diagnostic"
-    echo "./migPusher.sh cli b8_27_eb_a0_a8_71 InstallMIGOS"
+    echo "./migPusher.sh cli b8_27_eb_a0_a8_71 InstallUXMIGOS"
     echo ""
 }
 
@@ -71,16 +71,16 @@ case $1 in
                 wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && \
                 md5sum --check migDiagnostic.sh.md5 && \
                 bash migDiagnostic.sh && \
-                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && \
-                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && \
-                md5sum --check migInstallMIGOS.sh.md5 && \
-                bash migInstallMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallUXMIGOS.sh -O migInstallUXMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallUXMIGOS.sh.md5 -O migInstallUXMIGOS.sh.md5 && \
+                md5sum --check migInstallUXMIGOS.sh.md5 && \
+                bash migInstallUXMIGOS.sh && \
                 [ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
-                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_UXMIGOS_IS_RUNING ] && \
                 [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
                 reboot"
             ;;
-            "Diagnostic"|"InstallMIGOS"|"RestoreRaspbBoot")
+            "Diagnostic"|"InstallUXMIGOS"|"RestoreRaspbBoot")
                 echo "Valid Script name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="cd /tmp && \
                 wget ${MIGBUCKET_URL}/migscripts/mig$3.sh -O mig$3.sh && \
@@ -91,7 +91,7 @@ case $1 in
             "reboot")
                 echo "Valid event name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="[ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
-                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_UXMIGOS_IS_RUNING ] && \
                 [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
                 reboot"
             ;;
@@ -153,16 +153,16 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
                 wget ${MIGBUCKET_URL}/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && \
                 md5sum --check migDiagnostic.sh.md5 && \
                 bash migDiagnostic.sh && \
-                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && \
-                wget ${MIGBUCKET_URL}/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && \
-                md5sum --check migInstallMIGOS.sh.md5 && \
-                bash migInstallMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallUXMIGOS.sh -O migInstallUXMIGOS.sh && \
+                wget ${MIGBUCKET_URL}/migscripts/migInstallUXMIGOS.sh.md5 -O migInstallUXMIGOS.sh.md5 && \
+                md5sum --check migInstallUXMIGOS.sh.md5 && \
+                bash migInstallUXMIGOS.sh && \
                 [ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
-                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_UXMIGOS_IS_RUNING ] && \
                 [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
                 reboot"
             ;;
-            "Diagnostic"|"InstallMIGOS"|"RestoreRaspbBoot")
+            "Diagnostic"|"InstallUXMIGOS"|"RestoreRaspbBoot")
                 echo "Valid Script name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="cd /tmp && \
                 wget ${MIGBUCKET_URL}/migscripts/mig$3.sh -O mig$3.sh && \
@@ -173,7 +173,7 @@ $queryString" | openssl dgst -sha256 -hex -hmac "${APP_SECRET}" | awk '{print $2
             "reboot")
                 echo "Valid event name: $3" &>>${MIGSCRIPT_LOG}
                 MIGCMD="[ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && \
-                [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && \
+                [ ! -f /root/migstate/MIG_INSTALL_UXMIGOS_IS_RUNING ] && \
                 [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && \
                 reboot"
             ;;
@@ -222,7 +222,7 @@ exit 0
 # https://dashboard.pusher.com/apps/367382/getting_started
 
 # "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh -O migDiagnostic.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && md5sum --check migDiagnostic.sh.md5 && bash migDiagnostic.sh"
-# "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && md5sum --check migInstallMIGOS.sh.md5 && bash migInstallMIGOS.sh"
+# "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallUXMIGOS.sh -O migInstallUXMIGOS.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && md5sum --check migInstallMIGOS.sh.md5 && bash migInstallMIGOS.sh"
 
 # wget -O - 'http://10.0.0.21/balenaos/migscripts/migFunctions.sh' | source
 # curl -s http://server/path/script.sh | bash -s arg1 arg2

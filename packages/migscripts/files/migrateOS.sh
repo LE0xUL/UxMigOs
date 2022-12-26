@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script to migrate the OS of any Linux Device Using MIGOS
-# USAGE: FILE_IMG2FLASH= FILE_MIGOS_BOOT= URL_BUCKET2DOWN= migrateOS.sh
+# Script to migrate the OS of any Linux Device Using UXMIGOS
+# USAGE: FILE_IMG2FLASH= FILE_UXMIGOS_BOOT= URL_BUCKET2DOWN= migrateOS.sh
 set -x
 
 : ${FILE_IMG2FLASH:=BalenaMigration32-rpi3-2.72.0_rev1-v12.3.5.img.gz}
-: ${FILE_MIGOS_BOOT:=migboot-migos-balena.tgz}
+: ${FILE_UXMIGOS_BOOT:=migboot-uxmigos-balena.tgz}
 : ${URL_BUCKET2DOWN:=https://storage.googleapis.com/balenamigration/m4b/}
 
 DIR_BOOT_MIGSTATE="/mnt/boot/migstate"
@@ -25,7 +25,7 @@ mkdir -vp ${DIR_MIGDOWNLOADS} || exit $LINENO
 [[ ! -f ${DIR_MIGDATA}/${FILE_BACKUP_BOOT} ]] && \
 {   
     cd /mnt/boot/ \
-    && [[ ! -f MIGOS_BOOT_INSTALLED ]] \
+    && [[ ! -f UXMIGOS_BOOT_INSTALLED ]] \
     && tar -czf ${DIR_MIGDATA}/${FILE_BACKUP_BOOT} . \
     || exit $LINENO
 }
@@ -44,18 +44,18 @@ wget ${URL_BUCKET2DOWN}${FILE_IMG2FLASH}.md5 -O ${FILE_IMG2FLASH}.md5 \
 
 md5sum --check ${FILE_IMG2FLASH}.md5 || exit $LINENO
 
-#wget MIGOS
-[[ ! -f ${FILE_MIGOS_BOOT} ]] && \
+#wget UXMIGOS
+[[ ! -f ${FILE_UXMIGOS_BOOT} ]] && \
 {   
-    wget ${URL_BUCKET2DOWN}${FILE_MIGOS_BOOT} \
+    wget ${URL_BUCKET2DOWN}${FILE_UXMIGOS_BOOT} \
     || exit $LINENO
 }
 
-wget ${URL_BUCKET2DOWN}${FILE_MIGOS_BOOT}.md5 -O ${FILE_MIGOS_BOOT}.md5 \
+wget ${URL_BUCKET2DOWN}${FILE_UXMIGOS_BOOT}.md5 -O ${FILE_UXMIGOS_BOOT}.md5 \
 || exit $LINENO
 
-#Check MIGOS
-md5sum --check ${FILE_MIGOS_BOOT}.md5 || exit $LINENO
+#Check UXMIGOS
+md5sum --check ${FILE_UXMIGOS_BOOT}.md5 || exit $LINENO
 
 #Backup config files
 cp -v /mnt/boot/system-connections/resin* ${DIR_OLD_MIGSTATE} \
@@ -68,9 +68,9 @@ cp -v /mnt/boot/system-connections/resin* ${DIR_OLD_MIGSTATE} \
     || exit $LINENO
 }
 
-#install MIGOS
+#install UXMIGOS
 rm -rf /mnt/boot/* || exit $LINENO
-tar -xzf ${FILE_MIGOS_BOOT} -C /mnt/boot/
+tar -xzf ${FILE_UXMIGOS_BOOT} -C /mnt/boot/
 
 #Restore Config Files
 mkdir -vp ${DIR_BOOT_MIGSTATE} || exit $LINENO

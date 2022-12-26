@@ -1,4 +1,4 @@
-# Step by step guide to migration AdBeacons to BalenaOS
+# Step by step guide to migration RaspbianOS to BalenaOS
 
 V20200703.1
 
@@ -7,13 +7,13 @@ V20200703.1
 All process is divided in three phases
 
 
-* **PHASE 1: AdBeacon OS**
+* **PHASE 1: Raspbian OS**
   
-  In this phase, two scripts are run on the original AdBeacon operating system. The scripts are the __*diagnostic*__ and, the one that does the __*download of the images of BALENAOS and MIGOS*__ once all the downloads have been made, proceeds to __*install MIGOS*__ in the `/boot` partition. Once MIGOS is installed, the computer restart and phase 2 begins.
+  In this phase, two scripts are run on the original RaspbianOS operating system. The scripts are the __*diagnostic*__ and, the one that does the __*download of the images of BALENAOS and UXMIGOS*__ once all the downloads have been made, proceeds to __*install UXMIGOS*__ in the `/boot` partition. Once UXMIGOS is installed, the computer restart and phase 2 begins.
 
-* **PHASE 2: MIGOS**
+* **PHASE 2: UXMIGOS**
 
-  In the second phase, when the computer restart automatically __*loads MIGOS in RAM*__, it copies the images downloaded from BALENA OS to RAM as well and starts the whole process of __*installing and configuring BALENA OS*__ in the SD of the device. Once this process finishes, the computer restart again.
+  In the second phase, when the computer restart automatically __*loads UXMIGOS in RAM*__, it copies the images downloaded from BALENA OS to RAM as well and starts the whole process of __*installing and configuring BALENA OS*__ in the SD of the device. Once this process finishes, the computer restart again.
 
 * **PHASE 3: BALENA OS**
 
@@ -36,9 +36,9 @@ For the **automated** process is necessary:
 
 For the **manual** process is necessary:
 
-* Have access to pusher dashboard in `admobilize-production`: [https://dashboard.pusher.com/apps/367382](https://dashboard.pusher.com/apps/367382)
+* Have access to pusher dashboard in : [https://dashboard.pusher.com/apps/367382](https://dashboard.pusher.com/apps/367382)
 
-* Have access to balena dashboard in `BalenaMigration` App: [https://dashboard.balena-cloud.com/apps/1547294](https://dashboard.balena-cloud.com/apps/1547294)
+* Have access to balena dashboard in : [https://dashboard.balena-cloud.com/apps/1547294](https://dashboard.balena-cloud.com/apps/1547294)
 
 
 For **both** process is necessary:
@@ -63,7 +63,7 @@ For **both** process is necessary:
 
 ### Automated (new way)
 
-* Download the script `migPusher.sh` from: https://storage.cloud.google.com/balenamigration/migscripts/migPusher.sh
+* Download the script [migPusher.sh](packages/migscripts/files/migPusher.sh)
 
 * Open one terminal, inside the directory where the previous script was downloaded an run the `migrate` event with the `device ID` to migrate, like this:
 
@@ -73,7 +73,7 @@ For **both** process is necessary:
 
 ### Semi-Automated (old way)
 
-* Download the script `migPusher.sh` from: https://storage.cloud.google.com/balenamigration/migscripts/migPusher.sh
+* Download the script [migPusher.sh](packages/migscripts/files/migPusher.sh)
 
 * Open one terminal, inside the directory where the previous script was downloaded, subscribe to the Pusher messages with the `device ID` to migrate, like this:
 
@@ -91,11 +91,11 @@ For **both** process is necessary:
 
 * In the same terminal where the diagnostic was run, execute the command for the installation script
 
-  ```./migPusher.sh cli b8_27_eb_a0_a8_71 InstallMIGOS```
+  ```./migPusher.sh cli b8_27_eb_a0_a8_71 InstallUXMIGOS```
 
   As in the previous script, you can see the result of the script in the console where `subscribe` was executed and the log of the entire process in` insightOps`.
 
-  If the result is successful, you will see **INSTALL MIGOS SUCCESS**
+  If the result is successful, you will see **INSTALL UXMIGOS SUCCESS**
 
 * Once the installation is successful, the device is restarted with:
 
@@ -106,7 +106,7 @@ For **both** process is necessary:
 
 ### Manual way
 
-* Log in to pusher dashboard into the `channel` of `admobilize-production` and to the `Debug Console` section
+* Log in to pusher dashboard and to the `Debug Console` section
 
   ![](./img/pusher1.png)
 
@@ -121,7 +121,7 @@ For **both** process is necessary:
 
   ```
   {
-    "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh -O migDiagnostic.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && md5sum --check migDiagnostic.sh.md5 && bash migDiagnostic.sh"
+    "command":"cd /tmp && wget https://github.com/LE0xUL/UxMigOs/blob/main/packages/migscripts/files/migDiagnostic.sh -O migDiagnostic.sh && wget https://github.com/LE0xUL/UxMigOs/blob/main/packages/migscripts/files/migDiagnostic.sh.md5 -O migDiagnostic.sh.md5 && md5sum --check migDiagnostic.sh.md5 && bash migDiagnostic.sh"
   }
   ```
 
@@ -144,7 +144,7 @@ For **both** process is necessary:
 
   ```
   {
-    "command":"cd /tmp && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh -O migInstallMIGOS.sh && wget https://storage.googleapis.com/balenamigration/migscripts/migInstallMIGOS.sh.md5 -O migInstallMIGOS.sh.md5 && md5sum --check migInstallMIGOS.sh.md5 && bash migInstallMIGOS.sh"
+    "command":"cd /tmp && wget https://github.com/LE0xUL/UxMigOs/blob/main/packages/migscripts/files/migInstallUXMIGOS.sh -O migInstallUXMIGOS.sh && wget https://github.com/LE0xUL/UxMigOs/blob/main/packages/migscripts/files/migInstallUXMIGOS.sh.md5 -O migInstallUXMIGOS.sh.md5 && md5sum --check migInstallUXMIGOS.sh.md5 && bash migInstallUXMIGOS.sh"
   }
   ```
   
@@ -154,7 +154,7 @@ For **both** process is necessary:
   
   Additionally in the dashboard of `insightOps` you can also see the log of the whole process.
   
-  If everything goes well, you should see the message **INSTALL MIGOS SUCCESS**.
+  If everything goes well, you should see the message **INSTALL UXMIGOS SUCCESS**.
   
   
 * Once the installation is successful, the device should be restarted. To do this, click again on `Show event creator` and enter the following information:
@@ -167,7 +167,7 @@ For **both** process is necessary:
 
   ```
   {
-    "command":"[ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && [ ! -f /root/migstate/MIG_INSTALL_MIGOS_IS_RUNING ] && [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && reboot"
+    "command":"[ ! -f /root/migstate/MIG_DIAGNOSTIC_IS_RUNING ] && [ ! -f /root/migstate/MIG_INSTALL_UXMIGOS_IS_RUNING ] && [ ! -f /root/migstate/MIG_RESTORE_RASPB_BOOT_IS_RUNING ] && reboot"
   }
   ```
   
@@ -178,42 +178,4 @@ For **both** process is necessary:
 
 This phase is fully automated, so there is no need to do any kind of intervention, just follow the entire process by reviewing the logs that the device generates in the `insightOps` dashboard.
 
-In the logs of the process, **MIGOS SUCCESS SUPERVISOR** should be seen at the end, which indicates that the entire migration process of phase two concluded successfully. If all goes well, the computer will automatically restart and start phase 3.
-
-
-## Migration phase 3
-
-### Automated way
-
-* For this phase it is necessary to download two files, one contains the information of the migrated devices `devices_migrated.csv` and the other is the script that configures those devices in the balena cloud `migProvider.sh`
-
-  [https://storage.cloud.google.com/balenamigration/migscripts/devices_migrated.csv](https://storage.cloud.google.com/balenamigration/migscripts/devices_migrated.csv)
-
-  [https://storage.cloud.google.com/balenamigration/migscripts/migProvider.sh](https://storage.cloud.google.com/balenamigration/migscripts/migProvider.sh)
-
-* Once downloaded, the script runs without any argument, it connects to the balena cloud and scans for the migrated devices, once found, it will configure the new device automatically and move it to the final destination application.
-
-  `./migProvider.sh`
-
-
-### Manual way
-
-* Log in to balena dashboard in the app `BalenaMigration`: [https://dashboard.balena-cloud.com/apps/1547294](https://dashboard.balena-cloud.com/apps/1547294)
-
-* Once the migrated device appears, select it and proceed to the section `Device Variables`
-
-  ![](./img/balena1.png)
-
-* Here, the following 4 variables will be entered:
-
-  `APPLICATION_ID` will have the value of `FACEV2`
-
-  `PROJECT_ID` the value of `admobilize-testing`
-
-  `DEVICE_ID` the same one that has been used but without underscores `b827eba0a871`
-
-  And for the variable `PROVISIONING_TOKEN` search inside the file `devices_migrated.csv` the `deviceId` and its corresponding `deviceProvisioningToken`
-
-* Once the variables have been entered, the device is moved to its final application. The rest of the provisioning and updating process will be done automatically.
-
-  ![](./img/balena2.png)
+In the logs of the process, **UXMIGOS SUCCESS SUPERVISOR** should be seen at the end, which indicates that the entire migration process of phase two concluded successfully. If all goes well, the computer will automatically restart and start BALENA OS (phase 3).

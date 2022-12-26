@@ -18,117 +18,117 @@ MIGCONFIG_FILE="mig.config"
 mkdir -vp ${MIGSSTATEDIR_ROOT} &>>/tmp/init.tmp.log
 mknod /dev/kmsg c 1 11 &>>/tmp/init.tmp.log
 
-echo "############    MIGOS INIT INI OK    ############" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "############    UXMIGOS INIT INI OK    ############" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
 if [[ -d ${MIGSSTATEDIR_ROOT} ]]; then
-   
+
     mkdir -vp ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
     mount -vt tmpfs -o size=300M tmpramdisk ${MIG_RAMDISK} &>>${MIGSCRIPT_LOG} && \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_RAMDISK_OK; echo "MIGOS | Init | OK | RAMDISK" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_RAMDISK_ERROR; echo "MIGOS | Init | ERROR | RAMDISK" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_RAMDISK_OK; echo "UXMIGOS | Init | OK | RAMDISK" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_RAMDISK_ERROR; echo "UXMIGOS | Init | ERROR | RAMDISK" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
 
     mknod ${MIGBOOT_DEVICE} b 179 1 &>>${MIGSCRIPT_LOG} && \
     mkdir -vp ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     mount -vo ro ${MIGBOOT_DEVICE} ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK; echo "MIGOS | Init | OK | MOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | MOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } 
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK; echo "UXMIGOS | Init | OK | MOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_ERROR; echo "UXMIGOS | Init | ERROR | MOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } 
 
     if [[ -d ${MIGSSTATEDIR_BOOT} ]]; then
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_FOUND
-        echo "MIGOS | Init | OK | MIGSTATE BOOT Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | Init | OK | MIGSTATE BOOT Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ]]; then
-            echo "MIGOS | Init | OK | ${MIGCONFIG_FILE} Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | OK | ${MIGCONFIG_FILE} Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
             cat ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} | tee -a /etc/environment &>>${MIGSCRIPT_LOG} && \
             cp -v ${MIGSSTATEDIR_BOOT}/${MIGCONFIG_FILE} ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_OK; echo "MIGOS | Init | OK | copyed ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_ERROR; echo "MIGOS | Init | ERROR | Can't copy ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_OK; echo "UXMIGOS | Init | OK | copyed ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_ERROR; echo "UXMIGOS | Init | ERROR | Can't copy ${MIGCONFIG_FILE}" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIG_CONFIG_NOT_FOUND
-            echo "MIGOS | Init | FAIL | ${MIGCONFIG_FILE} Not Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | ${MIGCONFIG_FILE} Not Found" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/wpa_supplicant.conf.bkp ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/wpa_supplicant.conf.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
             mkdir -vp /etc/wpa_supplicant/ &>>${MIGSCRIPT_LOG} && \
             cp -v ${MIGSSTATEDIR_BOOT}/wpa_supplicant.conf.bkp /etc/wpa_supplicant/wpa_supplicant.conf &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_OK; echo "MIGOS | Init | OK | WPA CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_ERROR; echo "MIGOS | Init | ERROR | WPA CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_OK; echo "UXMIGOS | Init | OK | WPA CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_ERROR; echo "UXMIGOS | Init | ERROR | WPA CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_WPA_CONFIG_NOT_FOUND
-            echo "MIGOS | Init | FAIL | WPA CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | WPA CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/en.network ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/en.network ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
             mkdir -vp /etc/systemd/network/ &>>${MIGSCRIPT_LOG} && \
             cp -v ${MIGSSTATEDIR_BOOT}/en.network /etc/systemd/network/en.network &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_OK; echo "MIGOS | Init | OK | ETH CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_ERROR; echo "MIGOS | Init | ERROR | ETH CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_OK; echo "UXMIGOS | Init | OK | ETH CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_ERROR; echo "UXMIGOS | Init | ERROR | ETH CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_ETH_CONFIG_NOT_FOUND
-            echo "MIGOS | Init | FAIL | ETH CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | ETH CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/wlan0.network ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/wlan0.network ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
             mkdir -vp /etc/systemd/network/ &>>${MIGSCRIPT_LOG} && \
             cp -v ${MIGSSTATEDIR_BOOT}/wlan0.network /etc/systemd/network/wlan0.network &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; echo "MIGOS | Init | OK | WLAN CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_ERROR; echo "MIGOS | Init | ERROR | WLAN CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_OK; echo "UXMIGOS | Init | OK | WLAN CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_ERROR; echo "UXMIGOS | Init | ERROR | WLAN CONFIG" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_NETWORK_WLAN_CONFIG_NOT_FOUND
-            echo "MIGOS | Init | FAIL | WLAN CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | WLAN CONFIG NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/carrierFile.bkp ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/carrierFile.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_OK; echo "MIGOS | Init | OK | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_ERROR; echo "MIGOS | Init | ERROR | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_OK; echo "UXMIGOS | Init | OK | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_ERROR; echo "UXMIGOS | Init | ERROR | CARRIER FILE" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_FILE_NOT_FOUND
-            echo "MIGOS | Init | FAIL | CARRIER FILE NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | CARRIER FILE NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         if [[ -f ${MIGSSTATEDIR_BOOT}/carrierSetup.sh.bkp ]]; then
             cp -v ${MIGSSTATEDIR_BOOT}/carrierSetup.sh.bkp ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_OK; echo "MIGOS | Init | OK | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_ERROR; echo "MIGOS | Init | ERROR | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_OK; echo "UXMIGOS | Init | OK | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+            { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_ERROR; echo "UXMIGOS | Init | ERROR | CARRIER SETUP" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
         else
             touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_CARRIER_SETUP_NOT_FOUND
-            echo "MIGOS | Init | FAIL | CARRIER SETUP NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+            echo "UXMIGOS | Init | FAIL | CARRIER SETUP NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         fi
 
         # Update FSM Files
         cp -v ${MIGSSTATEDIR_BOOT}/MIG_FSM_* ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-        echo "MIGOS | Init | OK | FSM files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
-        echo "MIGOS | Init | ERROR | FSM files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | Init | OK | FSM files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
+        echo "UXMIGOS | Init | ERROR | FSM files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
         # Update resin Files
         cp -v ${MIGSSTATEDIR_BOOT}/resin* ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-        echo "MIGOS | Init | OK | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
-        echo "MIGOS | Init | ERROR | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | Init | OK | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
+        echo "UXMIGOS | Init | ERROR | resin files -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
         # Update config.json
         cp -v ${MIGSSTATEDIR_BOOT}/appBalena.config.json ${MIGSSTATEDIR_ROOT} &>>${MIGSCRIPT_LOG} && \
-        echo "MIGOS | Init | OK | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
-        echo "MIGOS | Init | ERROR | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | Init | OK | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG} || \
+        echo "UXMIGOS | Init | ERROR | config.json -> ROOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     else
-        echo "MIGOS | Init | ERROR | MIGSTATE BOOT DIR NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | Init | ERROR | MIGSTATE BOOT DIR NOT FOUND" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_MIGSTATE_BOOT_NOT_FOUND_ERROR
     fi
 
     [[ -f ${MIGSSTATEDIR_ROOT}/MIG_INIT_MOUNT_BOOT_OK ]] && \
     umount -v ${MIGBOOT_MOUNTDIR} &>>${MIGSCRIPT_LOG} && \
     rm -vf ${MIGBOOT_DEVICE} &>>${MIGSCRIPT_LOG} && \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo "MIGOS | Init | OK | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
-    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "MIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_OK; echo "UXMIGOS | Init | OK | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }  || \
+    { touch ${MIGSSTATEDIR_ROOT}/MIG_INIT_UMOUNT_BOOT_ERROR; echo "UXMIGOS | Init | ERROR | UMOUNT BOOT" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
 
 else
-    echo "MIGOS | Init | FAIL | misssing ${MIGSSTATEDIR_ROOT}" &> /dev/kmsg
+    echo "UXMIGOS | Init | FAIL | misssing ${MIGSSTATEDIR_ROOT}" &> /dev/kmsg
 fi
 
-echo "************    MIGOS INIT END OK    ************" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "************    UXMIGOS INIT END OK    ************" |& tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 rm -rf /dev/kmsg &>>${MIGSCRIPT_LOG}
 
 exec /sbin/init

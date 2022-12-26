@@ -1,10 +1,12 @@
-# MIGOS - Balena
+# UXMIGOS
 
-MIGOS is a raspbian-based ramdisk environment for migrate raspbianOS to BalenaOS
+UXMIGOS is a raspbian-based ramdisk environment that was designed to migrate a raspbianOS to BalenaOS
 
-MIGOS is loaded fully into RAM at boot time, after which, the SD card is available for migration. 
+UXMIGOS is loaded fully into RAM at boot time, after which, the SD card is available for migration
 
-# INSTALL MIGOS
+UXMIGOS can be modified to migrate remotely any Linux OS to another OS (principally Linux Based)
+
+# INSTALL UXMIGOS
 
 ## Clone / Submodules
 
@@ -16,9 +18,9 @@ Note that shallow cloning usually won't be possible because most of the upstream
 
 ## Install System packages
 
-MIGOS uses multistrap to collect packages. multistrap requires apt and as such is only supported on Debian based systems. It may be possible to use it on other distributions, but this has not been tested.
+UXMIGOS uses multistrap to collect packages. multistrap requires apt and as such is only supported on Debian based systems. It may be possible to use it on other distributions, but this has not been tested.
 
-In addition you need the following packages to build MIGOS:
+In addition you need the following packages to build UXMIGOS:
 
 For Ubuntu 18.04:
 
@@ -54,7 +56,7 @@ Multistrap/apt needs public keys to verify the repositories. You must import the
     gpg --recv-key 9165938D90FDDD2E # raspbian-archive-keyring
     gpg --recv-key 82B129927FA3303E # raspberrypi-archive-keyring
 
-You should take the necessary steps to ensure that you have authentic versions of these keys. Once received, MIGOS will export them as and when required.
+You should take the necessary steps to ensure that you have authentic versions of these keys. Once received, UXMIGOS will export them as and when required.
 
 On Ubuntu 16.04 you will also need to import these keys into the host apt trusted keys with the following commands:
 
@@ -65,17 +67,17 @@ You may also need to do this on Ubuntu 16.10, 17.04, 17.10 but it is not necessa
 
 ## Pydo
 
-MIGOS uses a build tool called [pydo](https://github.com/ali1234/pydo) which has been developed specifically to handle complex builds that don't produce executables and libraries. You must first install it:
+UXMIGOS uses a build tool called [pydo](https://github.com/ali1234/pydo) which has been developed specifically to handle complex builds that don't produce executables and libraries. You must first install it:
 
-    cd migos-balena/pydo && sudo pip3 install .
+    cd uxmigos-balena/pydo && sudo pip3 install .
 
 ## Docker
 
-If have a docker in your system, you can run `./docker-build` to have a complete ecosystem to build the MIGOS
+If have a docker in your system, you can run `./docker-build` to have a complete ecosystem to build the UXMIGOS
 
-# BULID AND BOOTING MIGOS
+# BULID AND BOOTING UXMIGOS
 
-## Configure MIGOS
+## Configure UXMIGOS
 
 In the file 'config.py' you can define:
 
@@ -83,7 +85,7 @@ In the file 'config.py' you can define:
     * Packages to build (relating to packager folder)
     * The type or types for arch kernel
 
-## Compiling MIGOS
+## Compiling UXMIGOS
 
 First, initialize the project:
 
@@ -101,7 +103,7 @@ You can view other options running:
 
     pydo -l
 
-## RAW Booting of MIGOS (NOT for migration)
+## RAW Booting of UXMIGOS (NOT for migration)
 
 The build produces a boot/ directory containing everything needed to boot.
 
@@ -110,7 +112,7 @@ Run `./go.sh` to generate a fit `tgz` file and extract it onto blank boot fat pa
 
 # MIGRATION SCRIPTS
 
-Onto dir `/packages/migscripts` are the scripts that will be executed automatically by the MIGOS system or by hand for the user.
+Onto dir `/packages/migscripts` are the scripts that will be executed automatically by the UXMIGOS system or by hand for the user.
 
 Those scripts are in a bucked called `balenamigration` inside folder [migscripts](https://console.cloud.google.com/storage/browser/balenamigration/migscripts/?project=admobilize-testing)
 
@@ -150,11 +152,11 @@ ______________________
 __________\/__________
 |                    |  * BackUp Raspbian Boot Partition
 |                    |  * BackUp system configuration files
-|                    |  * Make Net configuration files for MIGOS and Balena
-| migInstallMIGOS.sh |  * Download files from bucket
+|                    |  * Make Net configuration files for UXMIGOS and Balena
+| migInstallUXMIGOS.sh |  * Download files from bucket
 |                    |  * Delete Boot files of Raspbian
-|                    |  * Download and install the last version of MIGOS
-|____________________|  * Reboot the system to initiate the migration process (MIGOS)
+|                    |  * Download and install the last version of UXMIGOS
+|____________________|  * Reboot the system to initiate the migration process (UXMIGOS)
 ```
 
 If each script generates a successful result the next script can be executed.
@@ -162,7 +164,7 @@ If any script fails, pay attention to logs, to determinate the source of the err
 
 ## Order of automatic execution scripts
 
-Those scrips are executed automatically by the systemd services of MIGOS
+Those scrips are executed automatically by the systemd services of UXMIGOS
 
 ```
                ____________________
@@ -208,7 +210,7 @@ Example:
 
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
-./migPusher.sh api b8_27_eb_a0_a8_71 migInstallMIGOS
+./migPusher.sh api b8_27_eb_a0_a8_71 migInstallUXMIGOS
 ```
 
 > The output of this script only say if the "pusher command" can be sent, to see the result of each script executed remotely is necessary see the log in the `insightOps` platform (see above)
@@ -231,7 +233,7 @@ Example:
 
 ```
 ./migPusher.sh api b8_27_eb_a0_a8_71 migDiagnostic
-./migPusher.sh api b8_27_eb_a0_a8_71 migInstallMIGOS
+./migPusher.sh api b8_27_eb_a0_a8_71 migInstallUXMIGOS
 ``
 
 > The output of this script only say if the "pusher command" can be sent or fail, to see the result of each script executed remotely is necessary see the log on the `insightOps` platform (see above)

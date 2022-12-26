@@ -24,10 +24,10 @@ MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGBKP_RASPBIANBOOT="/root/migboot-backup-raspbian.tgz"
 
-# TODO: MIGOS_VERSION="$(git describe)"
-# TODO: MIGOS_BALENA_FILENAME="migboot-migos-balena_${MIGOS_VERSION}.tgz"
-MIGOS_BALENA_FILENAME="migboot-migos-balena.tgz"
-MIGOS_BALENA_FILEPATH="/root/${MIGOS_BALENA_FILENAME}"
+# TODO: UXMIGOS_VERSION="$(git describe)"
+# TODO: UXMIGOS_BALENA_FILENAME="migboot-uxmigos-balena_${UXMIGOS_VERSION}.tgz"
+UXMIGOS_BALENA_FILENAME="migboot-uxmigos-balena.tgz"
+UXMIGOS_BALENA_FILEPATH="/root/${UXMIGOS_BALENA_FILENAME}"
 
 MIGWEBLOG_URL='https://eu.webhook.logs.insight.rapid7.com/v1/noformat'
 MIGWEBLOG_KEYEVENT='f79248d1-bbe0-427b-934b-02a2dee5f24f'
@@ -159,12 +159,12 @@ function installMIGOS {
     MIGSCRIPT_STATE="INI"
     logEvent
 
-    wget -O ${MIGOS_BALENA_FILEPATH} "${MIGBUCKET_URL}/${MIGOS_BALENA_FILENAME}" &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    wget -O ${UXMIGOS_BALENA_FILEPATH} "${MIGBUCKET_URL}/${UXMIGOS_BALENA_FILENAME}" &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
     rm -rf /boot/* &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
-    tar -xzf ${MIGOS_BALENA_FILEPATH} -C /boot &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
+    tar -xzf ${UXMIGOS_BALENA_FILEPATH} -C /boot &>${MIGCOMMAND_LOG} || { logCommand; bkpExitError; }
 
     MIGSCRIPT_STATE="OK"
-    logEvent "installed MIGOS in boot partition"
+    logEvent "installed UXMIGOS in boot partition"
 
     ls /boot &> ${MIGCOMMAND_LOG} && cat ${MIGCOMMAND_LOG} &>> ${MIGSCRIPT_LOG} && \
     logCommand || bkpExitError
@@ -343,7 +343,7 @@ function iniBackupSystem {
     backupBootPartition
     backupSystemFiles
     makeNetFiles
-    installMIGOS
+    installUXMIGOS
 
     touch ${MIGSSTATE_DIR}/MIG_BACKUP_SUCCESS
 

@@ -25,8 +25,8 @@ MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
 MIGBUCKET_FILETEST='test.file'
 
-MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
-MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
+UXMIGOS_RASPBIAN_BOOT_FILE="/boot/UXMIGOS_RASPBIAN_BOOT_${MIGDID}"
+UXMIGOS_INSTALLED_BOOT_FILE="/boot/UXMIGOS_BOOT_INSTALLED"
 
 # USE: logCommand 
 # USE: logCommand MESSAGE 
@@ -371,7 +371,7 @@ function checkFilesAtBucket {
     fileList=(  'appBalena.config.json' \
                 'appBalena3G.config.json' \
                 ${MIGCONFIG_IMG2FLASH} \
-                'migboot-migos-balena.tgz' \
+                'migboot-uxmigos-balena.tgz' \
                 'jq_1.4-2.1+deb8u1_armhf.deb' \
                 'config3G.txt' \
                 'cmdline3G.txt' \
@@ -397,12 +397,12 @@ function checkFilesAtBucket {
 function testMigState {
     logEvent "INI"
     
-    if [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]] && [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
-        exitError "MIGOS is already installed in the system. Reboot the system to initiate the migration process"
-    elif [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
-        exitError "[FAIL] MIGOS_BOOT is present in the system"
-    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]]; then
-        exitError "[FAIL] INSTALL MIGOS was SUCCESS but MIGOS_BOOT is not present in the system"
+    if [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS ]] && [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "UXMIGOS is already installed in the system. Reboot the system to initiate the migration process"
+    elif [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "[FAIL] UXMIGOS_BOOT is present in the system"
+    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS ]]; then
+        exitError "[FAIL] INSTALL UXMIGOS was SUCCESS but UXMIGOS_BOOT is not present in the system"
     else
         rm -rf ${MIGSSTATE_DIR} && \
         echo "[OK] ${MIGSSTATE_DIR} deleted" || \
@@ -490,7 +490,7 @@ function iniDiagnostic {
 
     touch ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS
 
-    [[ -f ${MIGOS_RASPBIAN_BOOT_FILE} ]] || touch ${MIGOS_RASPBIAN_BOOT_FILE}
+    [[ -f ${UXMIGOS_RASPBIAN_BOOT_FILE} ]] || touch ${UXMIGOS_RASPBIAN_BOOT_FILE}
 
     logEvent "SUCCESS" "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
 

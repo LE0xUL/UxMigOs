@@ -1,5 +1,5 @@
 /_INITRD
-/migboot-migos-balena*.tgz
+/migboot-uxmigos-balena*.tgz
 /boot
 /.pydo
 /dnsmasq.conf

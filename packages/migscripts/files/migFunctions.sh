@@ -22,7 +22,7 @@ MIGWEBLOG_KEYCOMMAND='642de669-cf83-4e19-a6bf-9548eb7f5210'
 
 FILE_BACKUP_BOOT="mig-backup-boot.tgz"
 DIR_BACKUP_BOOT_IN_DATAFS=${MIGCONFIG_DIRBKPBOOT:-/root}
-MIGBKP_MIGSTATE_TMP="/tmp/migos_migstate_boot.tgz"
+MIGBKP_MIGSTATE_TMP="/tmp/uxmigos_migstate_boot.tgz"
 
 MIGCONFIG_FILE="mig.config"
 MIG_FILE_RESIN_CONFIG_JSON='appBalena.config.json'
@@ -62,8 +62,8 @@ function logCommand {
     MIGLOG_CMDUPTIME="$(cat /proc/uptime | awk '{print $1}')"
     MIGLOG_CMDLOG="\n vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv \n $(cat ${MIGCOMMAND_LOG}) \n ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n"
 
-    if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
-        echo -e '{ "os":"MIGOS", '\
+    if [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
+        echo -e '{ "os":"UXMIGOS", '\
         '"device":"'"${MIGCONFIG_DID}"'", '\
         '"script":"'"${MIGLOG_SCRIPTNAME}"'", '\
         '"function":"'"${MIGLOG_CMDFUNCNAME}"'", '\
@@ -74,12 +74,12 @@ function logCommand {
         '"cmdlog":"'"${MIGLOG_CMDLOG}"'"}' |& \
         tee -a ${MIGSCRIPT_LOG} |& \
         curl -ki --data @- "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYCOMMAND}" &>>${MIGSCRIPT_LOG} && \
-        { echo "MIGOS | ${MIGLOG_SCRIPTNAME} | logCommand | $LINENO | $(cat /proc/uptime | awk '{print $1}') | OK | ${MIGLOG_CMDMSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
-        { echo "MIGOS | ${MIGLOG_SCRIPTNAME} | logCommand | $LINENO | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
+        { echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | logCommand | $LINENO | $(cat /proc/uptime | awk '{print $1}') | OK | ${MIGLOG_CMDMSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}; } || \
+        { echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | logCommand | $LINENO | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, curl fail" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}; }
     else
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | ${MIGLOG_CMDUPTIME} | CMDLOG | ${MIGLOG_CMDMSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | ${MIGLOG_CMDUPTIME} | CMDLOG | ${MIGLOG_CMDMSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         cat ${MIGCOMMAND_LOG} &>>${MIGSCRIPT_LOG}
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, No network" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can not send CMDLOG, No network" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     fi
 
     return 0
@@ -97,8 +97,8 @@ function logEvent {
     MIGLOG_LINENO="${4:-${BASH_LINENO[0]}}"
     MIGLOG_UPTIME="$(cat /proc/uptime | awk '{print $1}')"
 
-    if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
-        echo '{ "os":"MIGOS", '\
+    if [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
+        echo '{ "os":"UXMIGOS", '\
         '"device":"'"${MIGCONFIG_DID}"'", '\
         '"script":"'"${MIGLOG_SCRIPTNAME}"'", '\
         '"function":"'"${MIGLOG_FUNCNAME}"'", '\
@@ -113,7 +113,7 @@ function logEvent {
         "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} || logCommand "Curl fail at send logEvent"
         # "${MIGWEBLOG_URL}/${MIGWEBLOG_KEYEVENT}" &>${MIGCOMMAND_LOG} >>${MIGSCRIPT_LOG} || logCommand "Curl fail at send logEvent"
     else
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${MIGLOG_FUNCNAME} | ${MIGLOG_LINENO} | ${MIGLOG_UPTIME} | ${MIGLOG_STATE} | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${MIGLOG_FUNCNAME} | ${MIGLOG_LINENO} | ${MIGLOG_UPTIME} | ${MIGLOG_STATE} | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     fi
 
     return 0
@@ -137,10 +137,10 @@ function execCmmd {
 }
 
 function logFilePush {
-    if [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
+    if [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
         logEvent "INFO" "$(curl -k --upload-file ${MIGSCRIPT_LOG} https://filepush.co/upload/)" "${FUNCNAME[1]}" "${BASH_LINENO[0]}"
     else
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can't send logFilePush" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | Can't send logFilePush" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
     fi
     return 0
 }
@@ -148,15 +148,15 @@ function logFilePush {
 function testBucketConnection {
     logEvent "INI"
 
-    [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR ]] && rm -fv ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR &>>${MIGSCRIPT_LOG}
-    [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] && rm -fv ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK &>>${MIGSCRIPT_LOG}
+    [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_ERROR ]] && rm -fv ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_ERROR &>>${MIGSCRIPT_LOG}
+    [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]] && rm -fv ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK &>>${MIGSCRIPT_LOG}
 
     execCmmd 'cat /etc/resolv.conf | grep "8.8.8.8" || echo "nameserver 8.8.8.8" >> /etc/resolv.conf' logCommand
 
 	until $(execCmmd "wget -q --tries=10 --timeout=10 --spider ${MIGBUCKET_URL}${MIGBUCKET_FILETEST}" logSuccess); do
 		if [ ${MIGBUCKET_ATTEMPTNUM} -eq ${MIGBUCKET_ATTEMPTMAX} ];then
 			logEvent "ERROR" "No Network Connection"
-			touch ${MIGSSTATE_DIR}/MIGOS_NETWORK_ERROR
+			touch ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_ERROR
 			return 1
 	    fi
 
@@ -165,7 +165,7 @@ function testBucketConnection {
 	    sleep 10
 	done
     
-    touch ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK
+    touch ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK
     logEvent "OK" "Network Connection"
     
     logEvent "END"
@@ -203,7 +203,7 @@ function downloadBucketFilesInRamdisk {
 
     [[ -f ${MIGSSTATE_DIR}/MIG_RAMDISK_OK ]] || { logEvent "ERROR" "Missing ${MIGSSTATE_DIR}/MIG_RAMDISK_OK"; return 1; }
     [[ -d ${MIG_RAMDISK} ]] && cd ${MIG_RAMDISK} || { logEvent "ERROR" "Missing ${MIG_RAMDISK}"; return 1; }
-    [[ -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]] || { logEvent "ERROR" "No network connention"; return 1; }
+    [[ -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]] || { logEvent "ERROR" "No network connention"; return 1; }
 
     for FILENAME_TO_DOWN in ${MIG_FILE_LIST_BUCKET[@]}
     do
@@ -658,7 +658,7 @@ function restoreBackupBoot {
         logEvent "OK" "Restaurated boot Backup in boot partition" || \
         { 
             logEvent "ERROR" "Can't restore boot Backup in boot partition"
-            # TODO: RESTORE MIGOS BOOT???
+            # TODO: RESTORE UXMIGOS BOOT???
             bootUmount RESTORE_RASPB_BOOT
             return 1
         }

@@ -13,14 +13,14 @@ MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migwatch.log"
 function cmdFail {
     if [[ -f ${MIGSCRIPT_LOG} ]]; then
         logEvent "EXIT" "${MIGLOG_MSG}" "${FUNCNAME[1]}" "${BASH_LINENO[0]}" || \
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 
         echo "" &>>${MIGSCRIPT_LOG}
-        echo ">>>>>>>>    MIGOS FAIL SUPERVISOR    <<<<<<<<" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+        echo ">>>>>>>>    UXMIGOS FAIL SUPERVISOR    <<<<<<<<" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
         date &>>${MIGSCRIPT_LOG}
         echo "\n" &>>${MIGSCRIPT_LOG}
     else
-        echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg
+        echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | EXIT | ${MIGLOG_MSG}" | tee /dev/kmsg
     fi
 
     restoreBackupBoot
@@ -35,7 +35,7 @@ function cmdFail {
 
 mkdir -vp ${MIGSSTATE_DIR} || \
 {
-    echo "MIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | ERROR to exec 'mkdir -vp ${MIGSSTATE_DIR}'" | \
+    echo "UXMIGOS | ${MIGLOG_SCRIPTNAME} | ${FUNCNAME[1]} | ${BASH_LINENO[0]} | $(cat /proc/uptime | awk '{print $1}') | FAIL | ERROR to exec 'mkdir -vp ${MIGSSTATE_DIR}'" | \
     tee /dev/kmsg
 }
 
@@ -44,7 +44,7 @@ sleep 30
 
 echo "" &>> ${MIGSCRIPT_LOG}
 echo "" &>> ${MIGSCRIPT_LOG}
-echo "########    MIGOS INI SUPERVISOR    ########" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "########    UXMIGOS INI SUPERVISOR    ########" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 date &>> ${MIGSCRIPT_LOG}
 echo "" &>> ${MIGSCRIPT_LOG}
 
@@ -61,7 +61,7 @@ testBucketConnection
 checkInit || cmdFail
 checkRamdisk || cmdFail
 
-if [[ ! -f ${MIGSSTATE_DIR}/MIGOS_NETWORK_OK ]]; then
+if [[ ! -f ${MIGSSTATE_DIR}/UXMIGOS_NETWORK_OK ]]; then
     restoreNetworkConfig || cmdFail
     checkConfigWPA || cmdFail
     testBucketConnection || cmdFail "Fail Network Connection"
@@ -75,7 +75,7 @@ migFlashSD.sh || cmdFail
 
 echo "" &>>${MIGSCRIPT_LOG}
 date &>>${MIGSCRIPT_LOG}
-echo "========    MIGOS SUCCESS SUPERVISOR    ========" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
+echo "========    UXMIGOS SUCCESS SUPERVISOR    ========" | tee /dev/kmsg &>>${MIGSCRIPT_LOG}
 echo -e "\n\n" &>>${MIGSCRIPT_LOG}
 logFilePush
 

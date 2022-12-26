@@ -5,25 +5,25 @@ MIGDID="$(hostname)"
 
 [[ 0 -ne $? ]] && { echo "[FAIL] Can't set MIGDID"; exit $LINENO; }
 
-: ${FILE_MIGOS_BOOT:=migboot-migos-balena.tgz}
+: ${FILE_UXMIGOS_BOOT:=migboot-uxmigos-balena.tgz}
 : ${MIGURL_BUCKET:=https://storage.googleapis.com/balenamigration/32b/}
 
-MIGLOG_SCRIPTNAME="migInstallMIGOS.sh"
+MIGLOG_SCRIPTNAME="migInstallUXMIGOS.sh"
 MIGSSTATEDIR_BOOT="/boot/migstate"
 MIGSSTATEDIR_ROOT="/root/migstate"
 MIGSSTATE_DIR="${MIGSSTATEDIR_ROOT}"
 MIGDOWN_DIR="/root/migdownloads"
 
 MIGCOMMAND_LOG="${MIGSSTATE_DIR}/cmd.log"
-MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migInstallMIGOS.log"
+MIGSCRIPT_LOG="${MIGSSTATE_DIR}/migInstallUXMIGOS.log"
 MIGCONFIG_FILE="${MIGSSTATE_DIR}/mig.config"
 MIGMMC="/dev/mmcblk0"
 MIGBOOT_DEV='/dev/mmcblk0p1'
 MIGBOOT_DIR='/boot'
 FILE_BACKUP_BOOT="mig-backup-boot.tgz"
 
-MIGOS_RASPBIAN_BOOT_FILE="/boot/MIGOS_RASPBIAN_BOOT_${MIGDID}"
-MIGOS_INSTALLED_BOOT_FILE="/boot/MIGOS_BOOT_INSTALLED"
+UXMIGOS_RASPBIAN_BOOT_FILE="/boot/UXMIGOS_RASPBIAN_BOOT_${MIGDID}"
+UXMIGOS_INSTALLED_BOOT_FILE="/boot/UXMIGOS_BOOT_INSTALLED"
 
 MIGNET_SYSTEMD_EN_FILE="${MIGSSTATE_DIR}/en.network"
 MIGNET_SYSTEMD_WLAN0_FILE="${MIGSSTATE_DIR}/wlan0.network"
@@ -120,12 +120,12 @@ function logFilePush {
 function restoreRaspbianBoot {
     logEvent "INI"
 
-    if [[ -f ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK ]] || [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
+    if [[ -f ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK ]] || [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
         if [[ -f /root/${FILE_BACKUP_BOOT} ]];then
             execCmmd "rm -vrf ${MIGBOOT_DIR}/*" logSuccess && \
             execCmmd "tar -xzvf /root/${FILE_BACKUP_BOOT} -C ${MIGBOOT_DIR}" logSuccess && \
-            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS" logSuccess && \
-            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK"  logSuccess && \
+            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS" logSuccess && \
+            execCmmd "rm -vf ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK"  logSuccess && \
             logEvent "OK" "Restaured Raspbian Backup in boot partition" || \
             logEvent "FAIL" "Can't restore Raspbian Backup in boot partition"
         else
@@ -138,8 +138,8 @@ function restoreRaspbianBoot {
 
 # USE: exitError MESSAGE
 function exitError {
-    touch ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_FAIL
-    MIGEXIT_LOGMSG="${1:-INSTALL_MIGOS_FAIL}"
+    touch ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_FAIL
+    MIGEXIT_LOGMSG="${1:-INSTALL_UXMIGOS_FAIL}"
     MIGEXIT_PARAM2=$2
     MIGEXIT_PARAM3=$3
 
@@ -152,21 +152,21 @@ function exitError {
     
     echo "" &>>${MIGSCRIPT_LOG}
     date |& tee -a ${MIGSCRIPT_LOG}
-    echo "[ ####    INSTALL MIGOS FAIL    #### ]" |& tee -a ${MIGSCRIPT_LOG}
+    echo "[ ####    INSTALL UXMIGOS FAIL    #### ]" |& tee -a ${MIGSCRIPT_LOG}
     echo "" &>>${MIGSCRIPT_LOG}
     echo "${MIGLOG_SCRIPTNAME}:${FUNCNAME[1]}[${BASH_LINENO[0]}] ${MIGEXIT_LOGMSG}" |& tee -a ${MIGSCRIPT_LOG}
 
     logFilePush
-    rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_IS_RUNING
+    rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_IS_RUNING
     exit $LINENO
 }
 
 function backupBootPartition {
     logEvent "INI"
 
-    [[ -f ${MIGOS_RASPBIAN_BOOT_FILE} ]] && \
+    [[ -f ${UXMIGOS_RASPBIAN_BOOT_FILE} ]] && \
     logEvent "OK" "Validated Raspbian boot partition" || \
-    exitError "Missing validation Raspbian boot file: ${MIGOS_RASPBIAN_BOOT_FILE}"
+    exitError "Missing validation Raspbian boot file: ${UXMIGOS_RASPBIAN_BOOT_FILE}"
 
     if [[ -f /root/${FILE_BACKUP_BOOT} ]]; then
         logEvent "INFO" "Raspbian boot backup file was detected in the system: ${FILE_BACKUP_BOOT}"
@@ -179,19 +179,19 @@ function backupBootPartition {
     logEvent "END"
 }
 
-function migos2Boot {
+function uxmigos2Boot {
     logEvent "INI"
 
     execCmmd "rm -vfr ${MIGBOOT_DIR}/*" logSuccess || \
     exitError "Fail at exec: rm -vfr ${MIGBOOT_DIR}/*" restoreRaspbianBoot
 
-    execCmmd "tar -xzvf ${MIGDOWN_DIR}/${FILE_MIGOS_BOOT} -C ${MIGBOOT_DIR}" logSuccess || \
-    exitError "tar -xzvf ${MIGDOWN_DIR}/${FILE_MIGOS_BOOT} -C ${MIGBOOT_DIR}" restoreRaspbianBoot
+    execCmmd "tar -xzvf ${MIGDOWN_DIR}/${FILE_UXMIGOS_BOOT} -C ${MIGBOOT_DIR}" logSuccess || \
+    exitError "tar -xzvf ${MIGDOWN_DIR}/${FILE_UXMIGOS_BOOT} -C ${MIGBOOT_DIR}" restoreRaspbianBoot
 
-    execCmmd "touch ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK" logSuccess || \
-    exitError "touch ${MIGSSTATE_DIR}/MIG_MIGOS_IN_BOOT_OK" restoreRaspbianBoot
+    execCmmd "touch ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK" logSuccess || \
+    exitError "touch ${MIGSSTATE_DIR}/MIG_UXMIGOS_IN_BOOT_OK" restoreRaspbianBoot
     
-    logEvent "OK" "Installed MIGOS in boot partition"
+    logEvent "OK" "Installed UXMIGOS in boot partition"
     
     execCmmd "ls -alh ${MIGBOOT_DIR}" logCommand
 
@@ -466,7 +466,7 @@ function downFilesFromBucket {
     MIG_FILE_BUCKET_LIST=(  \
         "${MIGFILE_BALENAWF_CONFIG_JSON}" \
         "${MIGFILE_BALENA3G_CONFIG_JSON}" \
-        "${FILE_MIGOS_BOOT}" \
+        "${FILE_UXMIGOS_BOOT}" \
         "${MIGFILE_JQ_PACKAGE}" \
         "${MIGCONFIG_IMG2FLASH}" \
         'config3G.txt' \
@@ -605,12 +605,12 @@ function testMigState {
     
     if [[ ! -f ${MIGSSTATE_DIR}/MIG_DIAGNOSTIC_SUCCESS ]]; then
         exitError "[FAIL] Is necessary run first the Diagnostic script with success result."
-    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]] && [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
-        exitError "MIGOS is already installed in the system. Reboot the system to initiate the migration process"
-    elif [[ -f ${MIGOS_INSTALLED_BOOT_FILE} ]]; then
-        exitError "[FAIL] MIGOS_BOOT is present in the system"
-    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS ]]; then
-        exitError "[FAIL] INSTALL MIGOS was SUCCESS but MIGOS_BOOT is not present in the system"
+    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS ]] && [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "UXMIGOS is already installed in the system. Reboot the system to initiate the migration process"
+    elif [[ -f ${UXMIGOS_INSTALLED_BOOT_FILE} ]]; then
+        exitError "[FAIL] UXMIGOS_BOOT is present in the system"
+    elif [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS ]]; then
+        exitError "[FAIL] INSTALL UXMIGOS was SUCCESS but UXMIGOS_BOOT is not present in the system"
     fi
     
     logEvent "END"
@@ -639,31 +639,31 @@ function testBucketConnection {
     fi
 }
 
-function testInstallMigosRunning {
+function testInstallUxMigOsRunning {
     sleep 0.$[ ( $RANDOM % 10 ) ]s
     
-    if [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_IS_RUNING ]]
+    if [[ -f ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_IS_RUNING ]]
     then
-        echo "[FAIL] Another Install MIGOS script is running"
+        echo "[FAIL] Another Install UXMIGOS script is running"
         exit $LINENO
     fi
 }
 
-function iniMigosInstall {
+function iniUxMigOsInstall {
     testIsRoot
     testBucketConnection
-    testInstallMigosRunning
+    testInstallUxMigOsRunning
 
     mkdir -vp ${MIGSSTATE_DIR}
-    touch ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_IS_RUNING
+    touch ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_IS_RUNING
 
     echo "" &>>${MIGSCRIPT_LOG}
     echo "" &>>${MIGSCRIPT_LOG}
-    echo "[ ####    INSTALL MIGOS INI    #### ]" |& tee -a ${MIGSCRIPT_LOG}
+    echo "[ ####    INSTALL UXMIGOS INI    #### ]" |& tee -a ${MIGSCRIPT_LOG}
     date |& tee -a ${MIGSCRIPT_LOG}
     logEvent "INI"
 
-    rm -vf  ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_FAIL &>>${MIGSCRIPT_LOG} || exitError
+    rm -vf  ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_FAIL &>>${MIGSCRIPT_LOG} || exitError
 
     testMigState
     validateDiagnostic
@@ -679,26 +679,26 @@ function iniMigosInstall {
     makeNetFilesResin
 
     makeBalenaConfigJson
-    migos2Boot
+    uxmigos2Boot
     migState2Boot
 
-    touch ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_SUCCESS
+    touch ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_SUCCESS
 
     logEvent "SUCCESS" "TOTAL TIME: $(( $(cat /proc/uptime | grep -o '^[0-9]\+') - ${MIGTIME_INI} )) seconds"
 
     echo "" &>>${MIGSCRIPT_LOG}
     date | tee -a ${MIGSCRIPT_LOG}
-    echo "[ ####    INSTALL MIGOS SUCCESS    #### ]" |& tee -a ${MIGSCRIPT_LOG}
+    echo "[ ####    INSTALL UXMIGOS SUCCESS    #### ]" |& tee -a ${MIGSCRIPT_LOG}
     
     cp ${MIGSCRIPT_LOG} ${MIGBOOT_DIR} |& tee -a ${MIGSCRIPT_LOG}
     logFilePush
-    rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_MIGOS_IS_RUNING
+    rm -vf ${MIGSSTATE_DIR}/MIG_INSTALL_UXMIGOS_IS_RUNING
     echo "reboot"
     # shutdown -r now
     # shutdown -r +1
 }
 
-iniMigosInstall
+iniUxMigOsInstall
 
 echo $LINENO
 exit 0
